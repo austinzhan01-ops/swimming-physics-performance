@@ -1,0 +1,15 @@
+# Virtual environments & Python cache
+.venv/
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# Large third-party raw datasets (see PROJECT SUMMARY.md for download URLs)
+data/raw/*.csv
+data/raw/*.zip
+data/raw/kaggle_*/
+!data/raw/world_aquatics_base_times.json
+
+# OS artifacts
+.DS_Store
+Thumbs.db

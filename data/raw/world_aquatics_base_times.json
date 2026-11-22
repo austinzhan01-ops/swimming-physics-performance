@@ -1,0 +1,19 @@
+{
+  "source": "World Aquatics (FINA) Points Table - Long Course Meters (LCM) 2024 / 2025",
+  "formula": "Points = floor(1000 * (B / T)^3), where B is base_time_seconds and T is swim_time_seconds",
+  "notes": "Women's 800m Freestyle base time is 484.79s (8:04.79) for 2024/pre-May 2025; updated to 8:04.12 only after May 2025 WR.",
+  "lcm_freestyle": {
+    "Men": {
+      "50m": 20.91,
+      "100m": 46.40,
+      "800m": 452.12,
+      "1500m": 870.67
+    },
+    "Women": {
+      "50m": 23.61,
+      "100m": 51.71,
+      "800m": 484.79,
+      "1500m": 920.48
+    }
+  }
+}
