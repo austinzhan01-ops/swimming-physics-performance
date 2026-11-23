@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Paris 2024 Freestyle Kinematics Tagger (96 Finalists)</title>
+<style>
+  :root {
+    --bg: #0f172a; --panel: #1e293b; --panel-2: #263449; --border: #334155;
+    --text: #f1f5f9; --muted: #94a3b8; --accent: #38bdf8; --gold: #f59e0b;
+    --green: #22c55e; --red: #ef4444; --orange: #f97316;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.45;
+  }
+  header {
+    background: var(--panel); border-bottom: 1px solid var(--border);
+    padding: 12px 20px; display: flex; flex-wrap: wrap; align-items: center;
+    justify-content: space-between; gap: 12px;
+  }
+  header h1 { margin: 0; font-size: 18px; font-weight: 700; color: var(--accent); }
+  .stats-bar { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-size: 13px; }
+  .pill {
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 999px;
+    padding: 4px 12px; font-weight: 600;
+  }
+  .pill.gold { border-color: var(--gold); color: var(--gold); }
+  .pill.green { border-color: var(--green); color: var(--green); }
+  .btn {
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 13px; font-weight: 600;
+  }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: #0284c7; border-color: #0284c7; color: #fff; }
+  .btn.primary:hover { background: #0369a1; }
+  .btn.success { background: #16a34a; border-color: #16a34a; color: #fff; }
+  .btn.success:hover { background: #15803d; }
+  .btn.warn { background: #b45309; border-color: #b45309; color: #fff; }
+  .btn.active { background: var(--accent); color: #0f172a; border-color: var(--accent); }
+
+  .layout {
+    display: grid; grid-template-columns: 350px 1fr; height: calc(100vh - 60px);
+  }
+  @media (max-width: 980px) { .layout { grid-template-columns: 1fr; height: auto; } }
+
+  .sidebar {
+    background: var(--panel); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .filters {
+    padding: 12px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px;
+  }
+  .filters select, .filters input[type="text"] {
+    width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--text); font-size: 13px;
+  }
+  .toggle-row { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--gold); font-weight: 600; }
+  .roster { overflow-y: auto; flex: 1; }
+  .swimmer-item {
+    padding: 9px 12px; border-bottom: 1px solid var(--border); cursor: pointer;
+    display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  }
+  .swimmer-item:hover { background: var(--panel-2); }
+  .swimmer-item.selected { background: #0c4a6e; border-left: 4px solid var(--accent); }
+  .swimmer-item .name { font-weight: 600; font-size: 13px; }
+  .swimmer-item .meta { font-size: 11.5px; color: var(--muted); }
+  .badge {
+    font-size: 10.5px; padding: 2px 6px; border-radius: 4px; font-weight: 700; white-space: nowrap;
+  }
+  .badge.matched { background: rgba(245, 158, 11, 0.18); color: var(--gold); border: 1px solid var(--gold); }
+  .badge.done { background: rgba(34, 197, 94, 0.2); color: var(--green); border: 1px solid var(--green); }
+  .badge.warn { background: rgba(239, 68, 68, 0.2); color: var(--red); border: 1px solid var(--red); }
+
+  .main { padding: 16px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px;
+  }
+  .card h2 { margin: 0 0 10px 0; font-size: 15px; color: var(--accent); display: flex; justify-content: space-between; align-items: center; }
+  .info-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 10px;
+  }
+  .kv { background: var(--bg); padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border); }
+  .kv .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+  .kv .v { font-size: 14.5px; font-weight: 700; margin-top: 2px; }
+
+  .mode-tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+  video { width: 100%; max-height: 360px; background: #000; border-radius: 8px; border: 1px solid var(--border); }
+  .video-controls {
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px;
+  }
+  .form-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); gap: 12px; align-items: end;
+  }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; font-weight: 600; }
+  input[type="number"], input[type="text"].field {
+    width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--text); font-size: 14px; font-weight: 600;
+  }
+  .kbd {
+    display: inline-block; padding: 1px 6px; font-size: 11px; font-family: monospace;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--accent);
+  }
+  .checks { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .check-box {
+    padding: 10px; border-radius: 8px; background: var(--bg); border: 1px solid var(--border);
+  }
+  .check-box.ok { border-color: var(--green); }
+  .check-box.flag { border-color: var(--red); background: rgba(239, 68, 68, 0.12); }
+  .check-box .val { font-size: 17px; font-weight: 800; }
+  .check-box .msg { font-size: 11.5px; margin-top: 3px; color: var(--muted); }
+  .check-box.flag .msg { color: #fca5a5; font-weight: 600; }
+  .check-box.ok .msg { color: #86efac; }
+  .shortcut-bar {
+    font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 12px;
+    padding-top: 8px; border-top: 1px solid var(--border); margin-top: 10px;
+  }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Paris 2024 Freestyle Kinematics Tagger</h1>
+  <div class="stats-bar">
+    <span class="pill green" id="statLogged">Logged: 0 / 96</span>
+    <span class="pill gold" id="statMatched">Tier 2 Matched: 0 / 31</span>
+    <label class="btn" style="margin:0;">
+      Import CSV <input type="file" id="csvFileInput" accept=".csv" style="display:none;" />
+    </label>
+    <button class="btn success" id="btnExport">Export paris2024_kinematics.csv</button>
+    <button class="btn" id="btnResetStorage" title="Clear browser autosave">Reset Autosave</button>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="filters">
+      <select id="eventFilter">
+        <option value="ALL">All 12 Finals (96 Finalists)</option>
+      </select>
+      <input type="text" id="searchFilter" placeholder="Search swimmer or NOC..." />
+      <label class="toggle-row">
+        <input type="checkbox" id="matchedOnlyToggle" />
+        Priority: 31 Matched Returning Olympians Only
+      </label>
+      <label class="toggle-row" style="color: var(--muted);">
+        <input type="checkbox" id="unloggedOnlyToggle" />
+        Show unlogged only
+      </label>
+    </div>
+    <div class="roster" id="rosterList"></div>
+  </aside>
+
+  <main class="main">
+    <!-- Swimmer Header Card -->
+    <section class="card" id="swimmerCard">
+      <h2>
+        <span id="swTitle">Select a swimmer</span>
+        <span id="swBadges"></span>
+      </h2>
+      <div class="info-grid" id="swInfoGrid"></div>
+      <div style="margin-top:10px; font-size:12.5px; color:var(--muted);" id="swVideoInfo"></div>
+    </section>
+
+    <!-- Dual-Mode Measurement Card -->
+    <section class="card">
+      <div class="mode-tabs">
+        <button class="btn active" id="tabModeA">Mode A: Local Video File (Frame-Step)</button>
+        <button class="btn" id="tabModeB">Mode B: YouTube / Stopwatch Timestamp Mode</button>
+      </div>
+
+      <!-- Mode A: Local Video -->
+      <div id="modeAPanel">
+        <div class="video-controls" style="margin-top:0; margin-bottom:8px;">
+          <label class="btn primary" style="margin:0;">
+            Load Local Race Video (MP4/WebM)
+            <input type="file" id="videoFileInput" accept="video/*" style="display:none;" />
+          </label>
+          <span>FPS:</span>
+          <select id="fpsSelect" style="padding:4px 6px; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:4px;">
+            <option value="30" selected>30 fps</option>
+            <option value="25">25 fps</option>
+            <option value="50">50 fps</option>
+            <option value="60">60 fps</option>
+          </select>
+          <span>Speed:</span>
+          <select id="speedSelect" style="padding:4px 6px; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:4px;">
+            <option value="0.25">0.25x</option>
+            <option value="0.5" selected>0.5x</option>
+            <option value="0.75">0.75x</option>
+            <option value="1.0">1.0x</option>
+          </select>
+          <span class="pill" id="vidTimeDisplay">t = 0.000 s</span>
+        </div>
+        <video id="videoPlayer" controls></video>
+        <div class="video-controls">
+          <button class="btn" id="btnStepBack">−1 Frame (<span class="kbd">,</span>)</button>
+          <button class="btn" id="btnPlayPause">Play/Pause (<span class="kbd">P</span>)</button>
+          <button class="btn" id="btnStepFwd">+1 Frame (<span class="kbd">.</span>)</button>
+          <button class="btn primary" id="btnStampStart">Stamp 15m Start (<span class="kbd">1</span>)</button>
+          <button class="btn primary" id="btnStampEnd">Stamp 45m End (<span class="kbd">2</span>)</button>
+          <button class="btn warn" id="btnAddCycle">+1 Cycle (<span class="kbd">Space</span>/<span class="kbd">S</span>)</button>
+          <button class="btn warn" id="btnAddHalfCycle">+0.5 Cycle (<span class="kbd">H</span>)</button>
+          <button class="btn" id="btnSubHalfCycle">−0.5</button>
+          <button class="btn" id="btnResetCycles">Reset Cycles</button>
+        </div>
+      </div>
+
+      <!-- Mode B: YouTube / Stopwatch -->
+      <div id="modeBPanel" style="display:none;">
+        <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:10px;">
+          <button class="btn primary" id="btnSwStart">Start Stopwatch (<span class="kbd">1</span>)</button>
+          <button class="btn primary" id="btnSwStop">Stop Stopwatch (<span class="kbd">2</span>)</button>
+          <button class="btn" id="btnSwReset">Reset</button>
+          <span class="pill" id="swDisplay" style="font-size:15px;">0.00 s</span>
+          <button class="btn warn" id="btnAddCycleB">+1 Cycle (<span class="kbd">Space</span>/<span class="kbd">S</span>)</button>
+          <button class="btn warn" id="btnAddHalfCycleB">+0.5 Cycle (<span class="kbd">H</span>)</button>
+          <button class="btn" id="btnResetCyclesB">Reset Cycles</button>
+        </div>
+        <div class="form-grid" style="margin-bottom:10px;">
+          <div>
+            <label>Start Timestamp (SS.ss or MM:SS.ss)</label>
+            <input type="text" class="field" id="inpStartTs" placeholder="e.g. 0:12.40 or 12.40" />
+          </div>
+          <div>
+            <label>End Timestamp (SS.ss or MM:SS.ss)</label>
+            <input type="text" class="field" id="inpEndTs" placeholder="e.g. 0:26.15 or 26.15" />
+          </div>
+          <div>
+            <button class="btn" id="btnComputeTs" style="width:100%;">Compute Segment Time</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Shared Measurement Fields -->
+      <div class="form-grid" style="margin-top:12px; padding-top:12px; border-top:1px solid var(--border);">
+        <div>
+          <label>segment_distance_m
+            <button class="btn" style="padding:1px 6px; font-size:11px; margin-left:4px;" id="btnDist30">30m</button>
+            <button class="btn" style="padding:1px 6px; font-size:11px;" id="btnDist20">20m</button>
+          </label>
+          <input type="number" step="0.5" id="inpSegDist" value="30.0" />
+        </div>
+        <div>
+          <label>segment_time_sec</label>
+          <input type="number" step="0.01" id="inpSegTime" placeholder="e.g. 14.25" />
+        </div>
+        <div>
+          <label>stroke_cycles (1 cycle = 2 arm pulls)</label>
+          <input type="number" step="0.5" id="inpCycles" placeholder="e.g. 13.5" />
+        </div>
+        <div>
+          <label>source_notes</label>
+          <input type="text" class="field" id="inpNotes" placeholder="e.g. Lap 2 65-95m, Olympics.com" />
+        </div>
+      </div>
+
+      <div style="display:flex; gap:10px; margin-top:14px; flex-wrap:wrap;">
+        <button class="btn success" id="btnSaveNext">Save & Next Swimmer (<span class="kbd">Enter</span>)</button>
+        <button class="btn primary" id="btnSaveOnly">Save Swimmer</button>
+        <button class="btn" id="btnClearRow">Clear Measurements</button>
+      </div>
+
+      <div class="shortcut-bar">
+        <span><span class="kbd">,</span> / <span class="kbd">.</span> Frame step</span>
+        <span><span class="kbd">Shift+,</span> / <span class="kbd">Shift+.</span> ±5 frames</span>
+        <span><span class="kbd">1</span> Stamp Start</span>
+        <span><span class="kbd">2</span> Stamp End</span>
+        <span><span class="kbd">Space</span> / <span class="kbd">S</span> +1 Cycle</span>
+        <span><span class="kbd">H</span> +0.5 Cycle</span>
+        <span><span class="kbd">P</span> Play/Pause</span>
+      </div>
+    </section>
+
+    <!-- Live Instant Sanity Checks -->
+    <section class="card">
+      <h2>Live Hydrodynamic & Biomechanical Sanity Checks</h2>
+      <div class="checks" id="sanityChecks"></div>
+    </section>
+  </main>
+</div>
+
+<script>
+const DEFAULT_ROWS = [{"sex": "Men", "event": "50m Freestyle", "distance_m": 50, "event_category": "Sprint", "rank": 1, "participant_code": "1946161", "athlete_key": "p24_1946161", "athlete_name": "McEVOY Cameron", "noc": "AUS", "final_time_sec": 21.25, "whole_race_velocity_ms": 2.3529, "height_m": 1.85, "mass_kg": 70.0, "bmi": 20.45, "whole_race_froude": 0.5523, "wa_points": 952.0, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 5, "reaction_time_sec": 0.56, "target_lap_number": 1, "target_lap_50m_sec": 21.25, "target_lap_velocity_ms": 2.3529, "final_date": "2024-08-02", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-50m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 1 (15m -> 45m)", "measurement_window_m": 30.0, "notes": "Start 20:30 CEST; Gold: Cameron McEvoy (21.25). Fallback window 15m->35m (20.0m) if camera cuts before 45m. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "50m Freestyle", "distance_m": 50, "event_category": "Sprint", "rank": 2, "participant_code": "1903616", "athlete_key": "p24_1903616", "athlete_name": "PROUD Benjamin", "noc": "GBR", "final_time_sec": 21.3, "whole_race_velocity_ms": 2.3474, "height_m": 1.85, "mass_kg": 92.0, "bmi": 26.88, "whole_race_froude": 0.551, "wa_points": 946.0, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 4, "reaction_time_sec": 0.59, "target_lap_number": 1, "target_lap_50m_sec": 21.3, "target_lap_velocity_ms": 2.3474, "final_date": "2024-08-02", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-50m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 1 (15m -> 45m)", "measurement_window_m": 30.0, "notes": "Start 20:30 CEST; Gold: Cameron McEvoy (21.25). Fallback window 15m->35m (20.0m) if camera cuts before 45m. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "50m Freestyle", "distance_m": 50, "event_category": "Sprint", "rank": 3, "participant_code": "1909292", "athlete_key": "p24_1909292", "athlete_name": "MANAUDOU Florent", "noc": "FRA", "final_time_sec": 21.56, "whole_race_velocity_ms": 2.3191, "height_m": 1.99, "mass_kg": 99.0, "bmi": 25.0, "whole_race_froude": 0.5249, "wa_points": 914.0, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 1, "reaction_time_sec": 0.63, "target_lap_number": 1, "target_lap_50m_sec": 21.56, "target_lap_velocity_ms": 2.3191, "final_date": "2024-08-02", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-50m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 1 (15m -> 45m)", "measurement_window_m": 30.0, "notes": "Start 20:30 CEST; Gold: Cameron McEvoy (21.25). Fallback window 15m->35m (20.0m) if camera cuts before 45m. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "50m Freestyle", "distance_m": 50, "event_category": "Sprint", "rank": 4, "participant_code": "1967069", "athlete_key": "p24_1967069", "athlete_name": "LIENDO Josh", "noc": "CAN", "final_time_sec": 21.58, "whole_race_velocity_ms": 2.317, "height_m": 1.85, "mass_kg": 75.0, "bmi": 21.91, "whole_race_froude": 0.5439, "wa_points": 909.0, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 8, "reaction_time_sec": 0.64, "target_lap_number": 1, "target_lap_50m_sec": 21.58, "target_lap_velocity_ms": 2.317, "final_date": "2024-08-02", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-50m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 1 (15m -> 45m)", "measurement_window_m": 30.0, "notes": "Start 20:30 CEST; Gold: Cameron McEvoy (21.25). Fallback window 15m->35m (20.0m) if camera cuts before 45m. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "50m Freestyle", "distance_m": 50, "event_category": "Sprint", "rank": 5, "participant_code": "1954556", "athlete_key": "p24_1954556", "athlete_name": "GKOLOMEEV Kristian", "noc": "GRE", "final_time_sec": 21.59, "whole_race_velocity_ms": 2.3159, "height_m": 2.02, "mass_kg": 95.0, "bmi": 23.28, "whole_race_froude": 0.5202, "wa_points": 908.0, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 7, "reaction_time_sec": 0.63, "target_lap_number": 1, "target_lap_50m_sec": 21.59, "target_lap_velocity_ms": 2.3159, "final_date": "2024-08-02", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-50m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 1 (15m -> 45m)", "measurement_window_m": 30.0, "notes": "Start 20:30 CEST; Gold: Cameron McEvoy (21.25). Fallback window 15m->35m (20.0m) if camera cuts before 45m. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "50m Freestyle", "distance_m": 50, "event_category": "Sprint", "rank": 6, "participant_code": "1935896", "athlete_key": "p24_1935896", "athlete_name": "DRESSEL Caeleb", "noc": "USA", "final_time_sec": 21.61, "whole_race_velocity_ms": 2.3137, "height_m": 1.91, "mass_kg": 86.0, "bmi": 23.57, "whole_race_froude": 0.5345, "wa_points": 909.0, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 2, "reaction_time_sec": 0.63, "target_lap_number": 1, "target_lap_50m_sec": 21.61, "target_lap_velocity_ms": 2.3137, "final_date": "2024-08-02", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-50m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 1 (15m -> 45m)", "measurement_window_m": 30.0, "notes": "Start 20:30 CEST; Gold: Cameron McEvoy (21.25). Fallback window 15m->35m (20.0m) if camera cuts before 45m. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "50m Freestyle", "distance_m": 50, "event_category": "Sprint", "rank": 7, "participant_code": "1925681", "athlete_key": NaN, "athlete_name": "DEPLANO Leonardo", "noc": "ITA", "final_time_sec": 21.62, "whole_race_velocity_ms": 2.3127, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 3, "reaction_time_sec": 0.66, "target_lap_number": 1, "target_lap_50m_sec": 21.62, "target_lap_velocity_ms": 2.3127, "final_date": "2024-08-02", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-50m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 1 (15m -> 45m)", "measurement_window_m": 30.0, "notes": "Start 20:30 CEST; Gold: Cameron McEvoy (21.25). Fallback window 15m->35m (20.0m) if camera cuts before 45m. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "50m Freestyle", "distance_m": 50, "event_category": "Sprint", "rank": 8, "participant_code": "1538007", "athlete_key": NaN, "athlete_name": "CROOKS Jordan", "noc": "CAY", "final_time_sec": 21.64, "whole_race_velocity_ms": 2.3105, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 6, "reaction_time_sec": 0.63, "target_lap_number": 1, "target_lap_50m_sec": 21.64, "target_lap_velocity_ms": 2.3105, "final_date": "2024-08-02", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-50m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 1 (15m -> 45m)", "measurement_window_m": 30.0, "notes": "Start 20:30 CEST; Gold: Cameron McEvoy (21.25). Fallback window 15m->35m (20.0m) if camera cuts before 45m. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "100m Freestyle", "distance_m": 100, "event_category": "Sprint", "rank": 1, "participant_code": "1945148", "athlete_key": NaN, "athlete_name": "PAN Zhanle", "noc": "CHN", "final_time_sec": 46.4, "whole_race_velocity_ms": 2.1552, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 4, "reaction_time_sec": 0.62, "target_lap_number": 2, "target_lap_50m_sec": 24.12, "target_lap_velocity_ms": 2.073, "final_date": "2024-07-31", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-100m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 2 (65m -> 95m)", "measurement_window_m": 30.0, "notes": "Start 22:39 CEST; Gold: Pan Zhanle (46.40 WR). Fallback window 65m->85m (20.0m) if camera cuts before 95m. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "100m Freestyle", "distance_m": 100, "event_category": "Sprint", "rank": 2, "participant_code": "1946200", "athlete_key": "p24_1946200", "athlete_name": "CHALMERS Kyle", "noc": "AUS", "final_time_sec": 47.48, "whole_race_velocity_ms": 2.1061, "height_m": 1.93, "mass_kg": 90.0, "bmi": 24.16, "whole_race_froude": 0.484, "wa_points": 933.0, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 5, "reaction_time_sec": 0.7, "target_lap_number": 2, "target_lap_50m_sec": 24.45, "target_lap_velocity_ms": 2.045, "final_date": "2024-07-31", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-100m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 2 (65m -> 95m)", "measurement_window_m": 30.0, "notes": "Start 22:39 CEST; Gold: Pan Zhanle (46.40 WR). Fallback window 65m->85m (20.0m) if camera cuts before 95m. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "100m Freestyle", "distance_m": 100, "event_category": "Sprint", "rank": 3, "participant_code": "1543549", "athlete_key": NaN, "athlete_name": "POPOVICI David", "noc": "ROU", "final_time_sec": 47.49, "whole_race_velocity_ms": 2.1057, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 2, "reaction_time_sec": 0.66, "target_lap_number": 2, "target_lap_50m_sec": 24.55, "target_lap_velocity_ms": 2.0367, "final_date": "2024-07-31", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-100m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 2 (65m -> 95m)", "measurement_window_m": 30.0, "notes": "Start 22:39 CEST; Gold: Pan Zhanle (46.40 WR). Fallback window 65m->85m (20.0m) if camera cuts before 95m. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "100m Freestyle", "distance_m": 100, "event_category": "Sprint", "rank": 4, "participant_code": "1906372", "athlete_key": NaN, "athlete_name": "NEMETH Nandor", "noc": "HUN", "final_time_sec": 47.5, "whole_race_velocity_ms": 2.1053, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 3, "reaction_time_sec": 0.64, "target_lap_number": 2, "target_lap_50m_sec": 24.6, "target_lap_velocity_ms": 2.0325, "final_date": "2024-07-31", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-100m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 2 (65m -> 95m)", "measurement_window_m": 30.0, "notes": "Start 22:39 CEST; Gold: Pan Zhanle (46.40 WR). Fallback window 65m->85m (20.0m) if camera cuts before 95m. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "100m Freestyle", "distance_m": 100, "event_category": "Sprint", "rank": 5, "participant_code": "1909284", "athlete_key": NaN, "athlete_name": "GROUSSET Maxime", "noc": "FRA", "final_time_sec": 47.71, "whole_race_velocity_ms": 2.096, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 6, "reaction_time_sec": 0.62, "target_lap_number": 2, "target_lap_50m_sec": 25.1, "target_lap_velocity_ms": 1.992, "final_date": "2024-07-31", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-100m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 2 (65m -> 95m)", "measurement_window_m": 30.0, "notes": "Start 22:39 CEST; Gold: Pan Zhanle (46.40 WR). Fallback window 65m->85m (20.0m) if camera cuts before 95m. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "100m Freestyle", "distance_m": 100, "event_category": "Sprint", "rank": 6, "participant_code": "1907186", "athlete_key": NaN, "athlete_name": "SALCHOW Josha", "noc": "GER", "final_time_sec": 47.8, "whole_race_velocity_ms": 2.0921, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 8, "reaction_time_sec": 0.69, "target_lap_number": 2, "target_lap_50m_sec": 24.87, "target_lap_velocity_ms": 2.0105, "final_date": "2024-07-31", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-100m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 2 (65m -> 95m)", "measurement_window_m": 30.0, "notes": "Start 22:39 CEST; Gold: Pan Zhanle (46.40 WR). Fallback window 65m->85m (20.0m) if camera cuts before 95m. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "100m Freestyle", "distance_m": 100, "event_category": "Sprint", "rank": 7, "participant_code": "1935869", "athlete_key": NaN, "athlete_name": "ALEXY Jack", "noc": "USA", "final_time_sec": 47.96, "whole_race_velocity_ms": 2.0851, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 7, "reaction_time_sec": 0.68, "target_lap_number": 2, "target_lap_50m_sec": 25.33, "target_lap_velocity_ms": 1.9739, "final_date": "2024-07-31", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-100m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 2 (65m -> 95m)", "measurement_window_m": 30.0, "notes": "Start 22:39 CEST; Gold: Pan Zhanle (46.40 WR). Fallback window 65m->85m (20.0m) if camera cuts before 95m. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "100m Freestyle", "distance_m": 100, "event_category": "Sprint", "rank": 8, "participant_code": "1935911", "athlete_key": NaN, "athlete_name": "GUILIANO Chris", "noc": "USA", "final_time_sec": 47.98, "whole_race_velocity_ms": 2.0842, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 1, "reaction_time_sec": 0.61, "target_lap_number": 2, "target_lap_50m_sec": 25.16, "target_lap_velocity_ms": 1.9873, "final_date": "2024-07-31", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-100m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 2 (65m -> 95m)", "measurement_window_m": 30.0, "notes": "Start 22:39 CEST; Gold: Pan Zhanle (46.40 WR). Fallback window 65m->85m (20.0m) if camera cuts before 95m. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "200m Freestyle", "distance_m": 200, "event_category": "Middle", "rank": 1, "participant_code": "1543549", "athlete_key": NaN, "athlete_name": "POPOVICI David", "noc": "ROU", "final_time_sec": 104.72, "whole_race_velocity_ms": 1.9099, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 4, "reaction_time_sec": 0.67, "target_lap_number": 3, "target_lap_50m_sec": 26.86, "target_lap_velocity_ms": 1.8615, "final_date": "2024-07-29", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-200m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 3 of 4 (115m -> 145m)", "measurement_window_m": 30.0, "notes": "Start 20:41 CEST; Gold: David Popovici (1:44.72). Fallback window 115m->135m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "200m Freestyle", "distance_m": 200, "event_category": "Middle", "rank": 2, "participant_code": "1903617", "athlete_key": NaN, "athlete_name": "RICHARDS Matthew", "noc": "GBR", "final_time_sec": 104.74, "whole_race_velocity_ms": 1.9095, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 1, "reaction_time_sec": 0.6, "target_lap_number": 3, "target_lap_50m_sec": 27.07, "target_lap_velocity_ms": 1.8471, "final_date": "2024-07-29", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-200m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 3 of 4 (115m -> 145m)", "measurement_window_m": 30.0, "notes": "Start 20:41 CEST; Gold: David Popovici (1:44.72). Fallback window 115m->135m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "200m Freestyle", "distance_m": 200, "event_category": "Middle", "rank": 3, "participant_code": "1935918", "athlete_key": NaN, "athlete_name": "HOBSON Luke", "noc": "USA", "final_time_sec": 104.79, "whole_race_velocity_ms": 1.9086, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 3, "reaction_time_sec": 0.75, "target_lap_number": 3, "target_lap_50m_sec": 26.63, "target_lap_velocity_ms": 1.8776, "final_date": "2024-07-29", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-200m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 3 of 4 (115m -> 145m)", "measurement_window_m": 30.0, "notes": "Start 20:41 CEST; Gold: David Popovici (1:44.72). Fallback window 115m->135m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "200m Freestyle", "distance_m": 200, "event_category": "Middle", "rank": 4, "participant_code": "1903621", "athlete_key": "p24_1903621", "athlete_name": "SCOTT Duncan", "noc": "GBR", "final_time_sec": 104.87, "whole_race_velocity_ms": 1.9071, "height_m": 1.9, "mass_kg": 72.0, "bmi": 19.94, "whole_race_froude": 0.4417, "wa_points": 920.0, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 5, "reaction_time_sec": 0.67, "target_lap_number": 3, "target_lap_50m_sec": 26.89, "target_lap_velocity_ms": 1.8594, "final_date": "2024-07-29", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-200m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 3 of 4 (115m -> 145m)", "measurement_window_m": 30.0, "notes": "Start 20:41 CEST; Gold: David Popovici (1:44.72). Fallback window 115m->135m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "200m Freestyle", "distance_m": 200, "event_category": "Middle", "rank": 5, "participant_code": "1907192", "athlete_key": NaN, "athlete_name": "MAERTENS Lukas", "noc": "GER", "final_time_sec": 105.46, "whole_race_velocity_ms": 1.8965, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 6, "reaction_time_sec": 0.7, "target_lap_number": 3, "target_lap_50m_sec": 27.09, "target_lap_velocity_ms": 1.8457, "final_date": "2024-07-29", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-200m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 3 of 4 (115m -> 145m)", "measurement_window_m": 30.0, "notes": "Start 20:41 CEST; Gold: David Popovici (1:44.72). Fallback window 115m->135m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "200m Freestyle", "distance_m": 200, "event_category": "Middle", "rank": 5, "participant_code": "1949673", "athlete_key": "p24_1949673", "athlete_name": "RAPSYS Danas", "noc": "LTU", "final_time_sec": 105.46, "whole_race_velocity_ms": 1.8965, "height_m": 1.86, "mass_kg": 73.0, "bmi": 21.1, "whole_race_froude": 0.444, "wa_points": 904.0, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 7, "reaction_time_sec": 0.66, "target_lap_number": 3, "target_lap_50m_sec": 27.14, "target_lap_velocity_ms": 1.8423, "final_date": "2024-07-29", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-200m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 3 of 4 (115m -> 145m)", "measurement_window_m": 30.0, "notes": "Start 20:41 CEST; Gold: David Popovici (1:44.72). Fallback window 115m->135m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "200m Freestyle", "distance_m": 200, "event_category": "Middle", "rank": 7, "participant_code": "1946211", "athlete_key": NaN, "athlete_name": "GIULIANI Maximillian", "noc": "AUS", "final_time_sec": 105.57, "whole_race_velocity_ms": 1.8945, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 2, "reaction_time_sec": 0.69, "target_lap_number": 3, "target_lap_50m_sec": 26.85, "target_lap_velocity_ms": 1.8622, "final_date": "2024-07-29", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-200m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 3 of 4 (115m -> 145m)", "measurement_window_m": 30.0, "notes": "Start 20:41 CEST; Gold: David Popovici (1:44.72). Fallback window 115m->135m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "200m Freestyle", "distance_m": 200, "event_category": "Middle", "rank": 8, "participant_code": "1891652", "athlete_key": NaN, "athlete_name": "MATSUMOTO Katsuhiro", "noc": "JPN", "final_time_sec": 106.26, "whole_race_velocity_ms": 1.8822, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 8, "reaction_time_sec": 0.68, "target_lap_number": 3, "target_lap_50m_sec": 27.75, "target_lap_velocity_ms": 1.8018, "final_date": "2024-07-29", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-200m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 3 of 4 (115m -> 145m)", "measurement_window_m": 30.0, "notes": "Start 20:41 CEST; Gold: David Popovici (1:44.72). Fallback window 115m->135m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "400m Freestyle", "distance_m": 400, "event_category": "Middle", "rank": 1, "participant_code": "1907192", "athlete_key": NaN, "athlete_name": "MAERTENS Lukas", "noc": "GER", "final_time_sec": 221.78, "whole_race_velocity_ms": 1.8036, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 4, "reaction_time_sec": 0.69, "target_lap_number": 4, "target_lap_50m_sec": 28.26, "target_lap_velocity_ms": 1.7693, "final_date": "2024-07-27", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-400m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 4 of 8 (165m -> 195m)", "measurement_window_m": 30.0, "notes": "Start 20:42 CEST; Gold: Lukas Maertens (3:41.78). Fallback window 165m->185m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "400m Freestyle", "distance_m": 400, "event_category": "Middle", "rank": 2, "participant_code": "1946172", "athlete_key": NaN, "athlete_name": "WINNINGTON Elijah", "noc": "AUS", "final_time_sec": 222.21, "whole_race_velocity_ms": 1.8001, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 6, "reaction_time_sec": 0.67, "target_lap_number": 4, "target_lap_50m_sec": 28.37, "target_lap_velocity_ms": 1.7624, "final_date": "2024-07-27", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-400m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 4 of 8 (165m -> 195m)", "measurement_window_m": 30.0, "notes": "Start 20:42 CEST; Gold: Lukas Maertens (3:41.78). Fallback window 165m->185m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "400m Freestyle", "distance_m": 400, "event_category": "Middle", "rank": 3, "participant_code": "4654306", "athlete_key": NaN, "athlete_name": "KIM Woomin", "noc": "KOR", "final_time_sec": 222.5, "whole_race_velocity_ms": 1.7978, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 1, "reaction_time_sec": 0.62, "target_lap_number": 4, "target_lap_50m_sec": 28.35, "target_lap_velocity_ms": 1.7637, "final_date": "2024-07-27", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-400m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 4 of 8 (165m -> 195m)", "measurement_window_m": 30.0, "notes": "Start 20:42 CEST; Gold: Lukas Maertens (3:41.78). Fallback window 165m->185m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "400m Freestyle", "distance_m": 400, "event_category": "Middle", "rank": 4, "participant_code": "1946223", "athlete_key": NaN, "athlete_name": "SHORT Samuel", "noc": "AUS", "final_time_sec": 222.64, "whole_race_velocity_ms": 1.7966, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 2, "reaction_time_sec": 0.64, "target_lap_number": 4, "target_lap_50m_sec": 28.27, "target_lap_velocity_ms": 1.7687, "final_date": "2024-07-27", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-400m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 4 of 8 (165m -> 195m)", "measurement_window_m": 30.0, "notes": "Start 20:42 CEST; Gold: Lukas Maertens (3:41.78). Fallback window 165m->185m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "400m Freestyle", "distance_m": 400, "event_category": "Middle", "rank": 5, "participant_code": "1951604", "athlete_key": "p24_1951604", "athlete_name": "COSTA Guilherme", "noc": "BRA", "final_time_sec": 222.76, "whole_race_velocity_ms": 1.7957, "height_m": 1.85, "mass_kg": 72.0, "bmi": 21.04, "whole_race_froude": 0.4215, "wa_points": 964.0, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 5, "reaction_time_sec": 0.7, "target_lap_number": 4, "target_lap_50m_sec": 28.43, "target_lap_velocity_ms": 1.7587, "final_date": "2024-07-27", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-400m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 4 of 8 (165m -> 195m)", "measurement_window_m": 30.0, "notes": "Start 20:42 CEST; Gold: Lukas Maertens (3:41.78). Fallback window 165m->185m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "400m Freestyle", "distance_m": 400, "event_category": "Middle", "rank": 6, "participant_code": "1945150", "athlete_key": NaN, "athlete_name": "FEI Liwei", "noc": "CHN", "final_time_sec": 224.24, "whole_race_velocity_ms": 1.7838, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 3, "reaction_time_sec": 0.66, "target_lap_number": 4, "target_lap_50m_sec": 28.6, "target_lap_velocity_ms": 1.7483, "final_date": "2024-07-27", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-400m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 4 of 8 (165m -> 195m)", "measurement_window_m": 30.0, "notes": "Start 20:42 CEST; Gold: Lukas Maertens (3:41.78). Fallback window 165m->185m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "400m Freestyle", "distance_m": 400, "event_category": "Middle", "rank": 7, "participant_code": "1907234", "athlete_key": NaN, "athlete_name": "KLEMET Oliver", "noc": "GER", "final_time_sec": 226.59, "whole_race_velocity_ms": 1.7653, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 8, "reaction_time_sec": 0.68, "target_lap_number": 4, "target_lap_50m_sec": 28.57, "target_lap_velocity_ms": 1.7501, "final_date": "2024-07-27", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-400m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 4 of 8 (165m -> 195m)", "measurement_window_m": 30.0, "notes": "Start 20:42 CEST; Gold: Lukas Maertens (3:41.78). Fallback window 165m->185m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "400m Freestyle", "distance_m": 400, "event_category": "Middle", "rank": 8, "participant_code": "1935978", "athlete_key": NaN, "athlete_name": "SHACKELL Aaron", "noc": "USA", "final_time_sec": 227.0, "whole_race_velocity_ms": 1.7621, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 7, "reaction_time_sec": 0.67, "target_lap_number": 4, "target_lap_50m_sec": 28.93, "target_lap_velocity_ms": 1.7283, "final_date": "2024-07-27", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-400m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 4 of 8 (165m -> 195m)", "measurement_window_m": 30.0, "notes": "Start 20:42 CEST; Gold: Lukas Maertens (3:41.78). Fallback window 165m->185m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "800m Freestyle", "distance_m": 800, "event_category": "Distance", "rank": 1, "participant_code": "1539969", "athlete_key": NaN, "athlete_name": "WIFFEN Daniel", "noc": "IRL", "final_time_sec": 458.19, "whole_race_velocity_ms": 1.746, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 4, "reaction_time_sec": 0.73, "target_lap_number": 8, "target_lap_50m_sec": 29.15, "target_lap_velocity_ms": 1.7153, "final_date": "2024-07-30", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-800m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 8 of 16 (365m -> 395m)", "measurement_window_m": 30.0, "notes": "Start 21:07 CEST; Gold: Daniel Wiffen (7:38.19 OR). Fallback window 365m->385m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "800m Freestyle", "distance_m": 800, "event_category": "Distance", "rank": 2, "participant_code": "1935902", "athlete_key": NaN, "athlete_name": "FINKE Bobby", "noc": "USA", "final_time_sec": 458.75, "whole_race_velocity_ms": 1.7439, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 2, "reaction_time_sec": 0.73, "target_lap_number": 8, "target_lap_50m_sec": 29.06, "target_lap_velocity_ms": 1.7206, "final_date": "2024-07-30", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-800m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 8 of 16 (365m -> 395m)", "measurement_window_m": 30.0, "notes": "Start 21:07 CEST; Gold: Daniel Wiffen (7:38.19 OR). Fallback window 365m->385m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "800m Freestyle", "distance_m": 800, "event_category": "Distance", "rank": 3, "participant_code": "1925630", "athlete_key": "p24_1925630", "athlete_name": "PALTRINIERI Gregorio", "noc": "ITA", "final_time_sec": 459.38, "whole_race_velocity_ms": 1.7415, "height_m": 1.91, "mass_kg": 72.0, "bmi": 19.74, "whole_race_froude": 0.4023, "wa_points": 953.0, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 3, "reaction_time_sec": 0.76, "target_lap_number": 8, "target_lap_50m_sec": 28.97, "target_lap_velocity_ms": 1.7259, "final_date": "2024-07-30", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-800m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 8 of 16 (365m -> 395m)", "measurement_window_m": 30.0, "notes": "Start 21:07 CEST; Gold: Daniel Wiffen (7:38.19 OR). Fallback window 365m->385m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "800m Freestyle", "distance_m": 800, "event_category": "Distance", "rank": 4, "participant_code": "1941821", "athlete_key": NaN, "athlete_name": "JAOUADI Ahmed", "noc": "TUN", "final_time_sec": 462.83, "whole_race_velocity_ms": 1.7285, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 5, "reaction_time_sec": 0.75, "target_lap_number": 8, "target_lap_50m_sec": 29.56, "target_lap_velocity_ms": 1.6915, "final_date": "2024-07-30", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-800m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 8 of 16 (365m -> 395m)", "measurement_window_m": 30.0, "notes": "Start 21:07 CEST; Gold: Daniel Wiffen (7:38.19 OR). Fallback window 365m->385m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "800m Freestyle", "distance_m": 800, "event_category": "Distance", "rank": 5, "participant_code": "1907187", "athlete_key": "p24_1907187", "athlete_name": "SCHWARZ Sven", "noc": "GER", "final_time_sec": 463.59, "whole_race_velocity_ms": 1.7257, "height_m": 1.85, "mass_kg": 85.0, "bmi": 24.84, "whole_race_froude": 0.4051, "wa_points": 927.0, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 7, "reaction_time_sec": 0.74, "target_lap_number": 8, "target_lap_50m_sec": 29.13, "target_lap_velocity_ms": 1.7164, "final_date": "2024-07-30", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-800m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 8 of 16 (365m -> 395m)", "measurement_window_m": 30.0, "notes": "Start 21:07 CEST; Gold: Daniel Wiffen (7:38.19 OR). Fallback window 365m->385m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "800m Freestyle", "distance_m": 800, "event_category": "Distance", "rank": 5, "participant_code": "1909261", "athlete_key": NaN, "athlete_name": "AUBRY David", "noc": "FRA", "final_time_sec": 463.59, "whole_race_velocity_ms": 1.7257, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 8, "reaction_time_sec": 0.69, "target_lap_number": 8, "target_lap_50m_sec": 29.44, "target_lap_velocity_ms": 1.6984, "final_date": "2024-07-30", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-800m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 8 of 16 (365m -> 395m)", "measurement_window_m": 30.0, "notes": "Start 21:07 CEST; Gold: Daniel Wiffen (7:38.19 OR). Fallback window 365m->385m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "800m Freestyle", "distance_m": 800, "event_category": "Distance", "rank": 7, "participant_code": "1925677", "athlete_key": NaN, "athlete_name": "de TULLIO Luca", "noc": "ITA", "final_time_sec": 466.16, "whole_race_velocity_ms": 1.7161, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 1, "reaction_time_sec": 0.64, "target_lap_number": 8, "target_lap_50m_sec": 29.58, "target_lap_velocity_ms": 1.6903, "final_date": "2024-07-30", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-800m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 8 of 16 (365m -> 395m)", "measurement_window_m": 30.0, "notes": "Start 21:07 CEST; Gold: Daniel Wiffen (7:38.19 OR). Fallback window 365m->385m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "800m Freestyle", "distance_m": 800, "event_category": "Distance", "rank": 8, "participant_code": "1946172", "athlete_key": NaN, "athlete_name": "WINNINGTON Elijah", "noc": "AUS", "final_time_sec": 468.36, "whole_race_velocity_ms": 1.7081, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 6, "reaction_time_sec": 0.64, "target_lap_number": 8, "target_lap_50m_sec": 29.54, "target_lap_velocity_ms": 1.6926, "final_date": "2024-07-30", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-800m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 8 of 16 (365m -> 395m)", "measurement_window_m": 30.0, "notes": "Start 21:07 CEST; Gold: Daniel Wiffen (7:38.19 OR). Fallback window 365m->385m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "1500m Freestyle", "distance_m": 1500, "event_category": "Distance", "rank": 1, "participant_code": "1935902", "athlete_key": NaN, "athlete_name": "FINKE Bobby", "noc": "USA", "final_time_sec": 870.67, "whole_race_velocity_ms": 1.7228, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 7, "reaction_time_sec": 0.78, "target_lap_number": 15, "target_lap_50m_sec": 29.37, "target_lap_velocity_ms": 1.7024, "final_date": "2024-08-04", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-1500m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 15 of 30 (715m -> 745m)", "measurement_window_m": 30.0, "notes": "Start 18:37 CEST; Gold: Bobby Finke (14:30.67 WR). Fallback window 715m->735m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "1500m Freestyle", "distance_m": 1500, "event_category": "Distance", "rank": 2, "participant_code": "1925630", "athlete_key": "p24_1925630", "athlete_name": "PALTRINIERI Gregorio", "noc": "ITA", "final_time_sec": 874.55, "whole_race_velocity_ms": 1.7152, "height_m": 1.91, "mass_kg": 72.0, "bmi": 19.74, "whole_race_froude": 0.3962, "wa_points": 986.0, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 5, "reaction_time_sec": 0.75, "target_lap_number": 15, "target_lap_50m_sec": 29.29, "target_lap_velocity_ms": 1.7071, "final_date": "2024-08-04", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-1500m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 15 of 30 (715m -> 745m)", "measurement_window_m": 30.0, "notes": "Start 18:37 CEST; Gold: Bobby Finke (14:30.67 WR). Fallback window 715m->735m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "1500m Freestyle", "distance_m": 1500, "event_category": "Distance", "rank": 3, "participant_code": "1539969", "athlete_key": NaN, "athlete_name": "WIFFEN Daniel", "noc": "IRL", "final_time_sec": 879.63, "whole_race_velocity_ms": 1.7053, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 4, "reaction_time_sec": 0.75, "target_lap_number": 15, "target_lap_50m_sec": 29.23, "target_lap_velocity_ms": 1.7106, "final_date": "2024-08-04", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-1500m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 15 of 30 (715m -> 745m)", "measurement_window_m": 30.0, "notes": "Start 18:37 CEST; Gold: Bobby Finke (14:30.67 WR). Fallback window 715m->735m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "1500m Freestyle", "distance_m": 1500, "event_category": "Distance", "rank": 4, "participant_code": "1902450", "athlete_key": NaN, "athlete_name": "BETLEHEM David", "noc": "HUN", "final_time_sec": 880.91, "whole_race_velocity_ms": 1.7028, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 8, "reaction_time_sec": 0.72, "target_lap_number": 15, "target_lap_50m_sec": 29.67, "target_lap_velocity_ms": 1.6852, "final_date": "2024-08-04", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-1500m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 15 of 30 (715m -> 745m)", "measurement_window_m": 30.0, "notes": "Start 18:37 CEST; Gold: Bobby Finke (14:30.67 WR). Fallback window 715m->735m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "1500m Freestyle", "distance_m": 1500, "event_category": "Distance", "rank": 5, "participant_code": "1887955", "athlete_key": NaN, "athlete_name": "TUNCELLI Kuzey", "noc": "TUR", "final_time_sec": 881.22, "whole_race_velocity_ms": 1.7022, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 2, "reaction_time_sec": 0.72, "target_lap_number": 15, "target_lap_50m_sec": 29.42, "target_lap_velocity_ms": 1.6995, "final_date": "2024-08-04", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-1500m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 15 of 30 (715m -> 745m)", "measurement_window_m": 30.0, "notes": "Start 18:37 CEST; Gold: Bobby Finke (14:30.67 WR). Fallback window 715m->735m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "1500m Freestyle", "distance_m": 1500, "event_category": "Distance", "rank": 6, "participant_code": "1941821", "athlete_key": NaN, "athlete_name": "JAOUADI Ahmed", "noc": "TUN", "final_time_sec": 883.35, "whole_race_velocity_ms": 1.6981, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 3, "reaction_time_sec": 0.82, "target_lap_number": 15, "target_lap_50m_sec": 29.14, "target_lap_velocity_ms": 1.7159, "final_date": "2024-08-04", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-1500m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 15 of 30 (715m -> 745m)", "measurement_window_m": 30.0, "notes": "Start 18:37 CEST; Gold: Bobby Finke (14:30.67 WR). Fallback window 715m->735m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "1500m Freestyle", "distance_m": 1500, "event_category": "Distance", "rank": 7, "participant_code": "1909261", "athlete_key": NaN, "athlete_name": "AUBRY David", "noc": "FRA", "final_time_sec": 884.66, "whole_race_velocity_ms": 1.6956, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 6, "reaction_time_sec": 0.7, "target_lap_number": 15, "target_lap_50m_sec": 29.51, "target_lap_velocity_ms": 1.6943, "final_date": "2024-08-04", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-1500m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 15 of 30 (715m -> 745m)", "measurement_window_m": 30.0, "notes": "Start 18:37 CEST; Gold: Bobby Finke (14:30.67 WR). Fallback window 715m->735m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Men", "event": "1500m Freestyle", "distance_m": 1500, "event_category": "Distance", "rank": 8, "participant_code": "1909289", "athlete_key": "p24_1909289", "athlete_name": "JOLY Damien", "noc": "FRA", "final_time_sec": 892.61, "whole_race_velocity_ms": 1.6805, "height_m": 1.89, "mass_kg": 72.0, "bmi": 20.16, "whole_race_froude": 0.3903, "wa_points": 950.0, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 1, "reaction_time_sec": 0.69, "target_lap_number": 15, "target_lap_50m_sec": 29.75, "target_lap_velocity_ms": 1.6807, "final_date": "2024-08-04", "video_url": "https://olympics.com/en/paris-2024/videos/men-s-1500m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 15 of 30 (715m -> 745m)", "measurement_window_m": 30.0, "notes": "Start 18:37 CEST; Gold: Bobby Finke (14:30.67 WR). Fallback window 715m->735m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "50m Freestyle", "distance_m": 50, "event_category": "Sprint", "rank": 1, "participant_code": "1572557", "athlete_key": "p24_1572557", "athlete_name": "SJOESTROEM Sarah", "noc": "SWE", "final_time_sec": 23.71, "whole_race_velocity_ms": 2.1088, "height_m": 1.82, "mass_kg": 76.0, "bmi": 22.94, "whole_race_froude": 0.4991, "wa_points": 993.0, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 4, "reaction_time_sec": 0.61, "target_lap_number": 1, "target_lap_50m_sec": 23.71, "target_lap_velocity_ms": 2.1088, "final_date": "2024-08-04", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-50m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 1 (15m -> 45m)", "measurement_window_m": 30.0, "notes": "Start 18:30 CEST; Gold: Sarah Sjoestroem (23.71). Fallback window 15m->35m (20.0m) if camera cuts before 45m. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "50m Freestyle", "distance_m": 50, "event_category": "Sprint", "rank": 2, "participant_code": "1946212", "athlete_key": NaN, "athlete_name": "HARRIS Meg", "noc": "AUS", "final_time_sec": 23.97, "whole_race_velocity_ms": 2.0859, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 7, "reaction_time_sec": 0.68, "target_lap_number": 1, "target_lap_50m_sec": 23.97, "target_lap_velocity_ms": 2.0859, "final_date": "2024-08-04", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-50m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 1 (15m -> 45m)", "measurement_window_m": 30.0, "notes": "Start 18:30 CEST; Gold: Sarah Sjoestroem (23.71). Fallback window 15m->35m (20.0m) if camera cuts before 45m. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "50m Freestyle", "distance_m": 50, "event_category": "Sprint", "rank": 3, "participant_code": "1945125", "athlete_key": "p24_1945125", "athlete_name": "ZHANG Yufei", "noc": "CHN", "final_time_sec": 24.2, "whole_race_velocity_ms": 2.0661, "height_m": 1.74, "mass_kg": 57.0, "bmi": 18.83, "whole_race_froude": 0.5001, "wa_points": 928.0, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 6, "reaction_time_sec": 0.65, "target_lap_number": 1, "target_lap_50m_sec": 24.2, "target_lap_velocity_ms": 2.0661, "final_date": "2024-08-04", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-50m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 1 (15m -> 45m)", "measurement_window_m": 30.0, "notes": "Start 18:30 CEST; Gold: Sarah Sjoestroem (23.71). Fallback window 15m->35m (20.0m) if camera cuts before 45m. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "50m Freestyle", "distance_m": 50, "event_category": "Sprint", "rank": 4, "participant_code": "1935998", "athlete_key": NaN, "athlete_name": "WALSH Gretchen", "noc": "USA", "final_time_sec": 24.21, "whole_race_velocity_ms": 2.0653, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 5, "reaction_time_sec": 0.75, "target_lap_number": 1, "target_lap_50m_sec": 24.21, "target_lap_velocity_ms": 2.0653, "final_date": "2024-08-04", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-50m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 1 (15m -> 45m)", "measurement_window_m": 30.0, "notes": "Start 18:30 CEST; Gold: Sarah Sjoestroem (23.71). Fallback window 15m->35m (20.0m) if camera cuts before 45m. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "50m Freestyle", "distance_m": 50, "event_category": "Sprint", "rank": 5, "participant_code": "1879467", "athlete_key": "p24_1879467", "athlete_name": "WASICK Katarzyna", "noc": "POL", "final_time_sec": 24.33, "whole_race_velocity_ms": 2.0551, "height_m": 1.78, "mass_kg": 64.0, "bmi": 20.2, "whole_race_froude": 0.4918, "wa_points": 925.0, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 3, "reaction_time_sec": 0.67, "target_lap_number": 1, "target_lap_50m_sec": 24.33, "target_lap_velocity_ms": 2.0551, "final_date": "2024-08-04", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-50m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 1 (15m -> 45m)", "measurement_window_m": 30.0, "notes": "Start 18:30 CEST; Gold: Sarah Sjoestroem (23.71). Fallback window 15m->35m (20.0m) if camera cuts before 45m. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "50m Freestyle", "distance_m": 50, "event_category": "Sprint", "rank": 6, "participant_code": "1981469", "athlete_key": NaN, "athlete_name": "KLANCAR Neza", "noc": "SLO", "final_time_sec": 24.35, "whole_race_velocity_ms": 2.0534, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 8, "reaction_time_sec": 0.68, "target_lap_number": 1, "target_lap_50m_sec": 24.35, "target_lap_velocity_ms": 2.0534, "final_date": "2024-08-04", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-50m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 1 (15m -> 45m)", "measurement_window_m": 30.0, "notes": "Start 18:30 CEST; Gold: Sarah Sjoestroem (23.71). Fallback window 15m->35m (20.0m) if camera cuts before 45m. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "50m Freestyle", "distance_m": 50, "event_category": "Sprint", "rank": 7, "participant_code": "1945206", "athlete_key": NaN, "athlete_name": "WU Qingfeng", "noc": "CHN", "final_time_sec": 24.37, "whole_race_velocity_ms": 2.0517, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 1, "reaction_time_sec": 0.66, "target_lap_number": 1, "target_lap_50m_sec": 24.37, "target_lap_velocity_ms": 2.0517, "final_date": "2024-08-04", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-50m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 1 (15m -> 45m)", "measurement_window_m": 30.0, "notes": "Start 18:30 CEST; Gold: Sarah Sjoestroem (23.71). Fallback window 15m->35m (20.0m) if camera cuts before 45m. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "50m Freestyle", "distance_m": 50, "event_category": "Sprint", "rank": 8, "participant_code": "1946227", "athlete_key": NaN, "athlete_name": "JACK Shayna", "noc": "AUS", "final_time_sec": 24.39, "whole_race_velocity_ms": 2.05, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 2, "reaction_time_sec": 0.71, "target_lap_number": 1, "target_lap_50m_sec": 24.39, "target_lap_velocity_ms": 2.05, "final_date": "2024-08-04", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-50m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 1 (15m -> 45m)", "measurement_window_m": 30.0, "notes": "Start 18:30 CEST; Gold: Sarah Sjoestroem (23.71). Fallback window 15m->35m (20.0m) if camera cuts before 45m. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "100m Freestyle", "distance_m": 100, "event_category": "Sprint", "rank": 1, "participant_code": "1572557", "athlete_key": "p24_1572557", "athlete_name": "SJOESTROEM Sarah", "noc": "SWE", "final_time_sec": 52.16, "whole_race_velocity_ms": 1.9172, "height_m": 1.82, "mass_kg": 76.0, "bmi": 22.94, "whole_race_froude": 0.4537, "wa_points": 974.0, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 7, "reaction_time_sec": 0.63, "target_lap_number": 2, "target_lap_50m_sec": 26.9, "target_lap_velocity_ms": 1.8587, "final_date": "2024-07-31", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-100m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 2 (65m -> 95m)", "measurement_window_m": 30.0, "notes": "Start 20:30 CEST; Gold: Sarah Sjoestroem (52.16). Fallback window 65m->85m (20.0m) if camera cuts before 95m. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "100m Freestyle", "distance_m": 100, "event_category": "Sprint", "rank": 2, "participant_code": "1935923", "athlete_key": NaN, "athlete_name": "HUSKE Torri", "noc": "USA", "final_time_sec": 52.29, "whole_race_velocity_ms": 1.9124, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 1, "reaction_time_sec": 0.63, "target_lap_number": 2, "target_lap_50m_sec": 27.23, "target_lap_velocity_ms": 1.8362, "final_date": "2024-07-31", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-100m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 2 (65m -> 95m)", "measurement_window_m": 30.0, "notes": "Start 20:30 CEST; Gold: Sarah Sjoestroem (52.16). Fallback window 65m->85m (20.0m) if camera cuts before 95m. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "100m Freestyle", "distance_m": 100, "event_category": "Sprint", "rank": 3, "participant_code": "1925125", "athlete_key": "p24_1925125", "athlete_name": "HAUGHEY Siobhan Bernadette", "noc": "HKG", "final_time_sec": 52.33, "whole_race_velocity_ms": 1.9109, "height_m": 1.77, "mass_kg": 64.0, "bmi": 20.43, "whole_race_froude": 0.4586, "wa_points": 964.0, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 4, "reaction_time_sec": 0.67, "target_lap_number": 2, "target_lap_50m_sec": 27.24, "target_lap_velocity_ms": 1.8355, "final_date": "2024-07-31", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-100m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 2 (65m -> 95m)", "measurement_window_m": 30.0, "notes": "Start 20:30 CEST; Gold: Sarah Sjoestroem (52.16). Fallback window 65m->85m (20.0m) if camera cuts before 95m. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "100m Freestyle", "distance_m": 100, "event_category": "Sprint", "rank": 4, "participant_code": "1946218", "athlete_key": NaN, "athlete_name": "O'CALLAGHAN Mollie", "noc": "AUS", "final_time_sec": 52.34, "whole_race_velocity_ms": 1.9106, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 3, "reaction_time_sec": 0.69, "target_lap_number": 2, "target_lap_50m_sec": 26.83, "target_lap_velocity_ms": 1.8636, "final_date": "2024-07-31", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-100m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 2 (65m -> 95m)", "measurement_window_m": 30.0, "notes": "Start 20:30 CEST; Gold: Sarah Sjoestroem (52.16). Fallback window 65m->85m (20.0m) if camera cuts before 95m. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "100m Freestyle", "distance_m": 100, "event_category": "Sprint", "rank": 5, "participant_code": "1946227", "athlete_key": NaN, "athlete_name": "JACK Shayna", "noc": "AUS", "final_time_sec": 52.72, "whole_race_velocity_ms": 1.8968, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 5, "reaction_time_sec": 0.68, "target_lap_number": 2, "target_lap_50m_sec": 27.43, "target_lap_velocity_ms": 1.8228, "final_date": "2024-07-31", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-100m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 2 (65m -> 95m)", "measurement_window_m": 30.0, "notes": "Start 20:30 CEST; Gold: Sarah Sjoestroem (52.16). Fallback window 65m->85m (20.0m) if camera cuts before 95m. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "100m Freestyle", "distance_m": 100, "event_category": "Sprint", "rank": 6, "participant_code": "1945159", "athlete_key": "p24_1945159", "athlete_name": "YANG Junxuan", "noc": "CHN", "final_time_sec": 52.82, "whole_race_velocity_ms": 1.8932, "height_m": 1.72, "mass_kg": 67.0, "bmi": 22.65, "whole_race_froude": 0.4609, "wa_points": 938.0, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 6, "reaction_time_sec": 0.69, "target_lap_number": 2, "target_lap_50m_sec": 27.31, "target_lap_velocity_ms": 1.8308, "final_date": "2024-07-31", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-100m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 2 (65m -> 95m)", "measurement_window_m": 30.0, "notes": "Start 20:30 CEST; Gold: Sarah Sjoestroem (52.16). Fallback window 65m->85m (20.0m) if camera cuts before 95m. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "100m Freestyle", "distance_m": 100, "event_category": "Sprint", "rank": 7, "participant_code": "1972522", "athlete_key": "p24_1972522", "athlete_name": "STEENBERGEN Marrit", "noc": "NED", "final_time_sec": 52.83, "whole_race_velocity_ms": 1.8929, "height_m": 1.78, "mass_kg": 61.0, "bmi": 19.25, "whole_race_froude": 0.453, "wa_points": 937.0, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 2, "reaction_time_sec": 0.74, "target_lap_number": 2, "target_lap_50m_sec": 27.45, "target_lap_velocity_ms": 1.8215, "final_date": "2024-07-31", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-100m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 2 (65m -> 95m)", "measurement_window_m": 30.0, "notes": "Start 20:30 CEST; Gold: Sarah Sjoestroem (52.16). Fallback window 65m->85m (20.0m) if camera cuts before 95m. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "100m Freestyle", "distance_m": 100, "event_category": "Sprint", "rank": 8, "participant_code": "1935998", "athlete_key": NaN, "athlete_name": "WALSH Gretchen", "noc": "USA", "final_time_sec": 53.04, "whole_race_velocity_ms": 1.8854, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 8, "reaction_time_sec": 0.74, "target_lap_number": 2, "target_lap_50m_sec": 27.82, "target_lap_velocity_ms": 1.7973, "final_date": "2024-07-31", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-100m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 2 (65m -> 95m)", "measurement_window_m": 30.0, "notes": "Start 20:30 CEST; Gold: Sarah Sjoestroem (52.16). Fallback window 65m->85m (20.0m) if camera cuts before 95m. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "200m Freestyle", "distance_m": 200, "event_category": "Middle", "rank": 1, "participant_code": "1946218", "athlete_key": NaN, "athlete_name": "O'CALLAGHAN Mollie", "noc": "AUS", "final_time_sec": 113.27, "whole_race_velocity_ms": 1.7657, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 5, "reaction_time_sec": 0.67, "target_lap_number": 3, "target_lap_50m_sec": 29.22, "target_lap_velocity_ms": 1.7112, "final_date": "2024-07-29", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-200m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 3 of 4 (115m -> 145m)", "measurement_window_m": 30.0, "notes": "Start 21:53 CEST; Gold: Mollie O'Callaghan (1:53.27 OR). Fallback window 115m->135m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "200m Freestyle", "distance_m": 200, "event_category": "Middle", "rank": 2, "participant_code": "1946150", "athlete_key": NaN, "athlete_name": "TITMUS Ariarne", "noc": "AUS", "final_time_sec": 113.81, "whole_race_velocity_ms": 1.7573, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 4, "reaction_time_sec": 0.73, "target_lap_number": 3, "target_lap_50m_sec": 29.29, "target_lap_velocity_ms": 1.7071, "final_date": "2024-07-29", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-200m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 3 of 4 (115m -> 145m)", "measurement_window_m": 30.0, "notes": "Start 21:53 CEST; Gold: Mollie O'Callaghan (1:53.27 OR). Fallback window 115m->135m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "200m Freestyle", "distance_m": 200, "event_category": "Middle", "rank": 3, "participant_code": "1925125", "athlete_key": "p24_1925125", "athlete_name": "HAUGHEY Siobhan Bernadette", "noc": "HKG", "final_time_sec": 114.55, "whole_race_velocity_ms": 1.746, "height_m": 1.77, "mass_kg": 64.0, "bmi": 20.43, "whole_race_froude": 0.419, "wa_points": 940.0, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 6, "reaction_time_sec": 0.7, "target_lap_number": 3, "target_lap_50m_sec": 29.27, "target_lap_velocity_ms": 1.7082, "final_date": "2024-07-29", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-200m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 3 of 4 (115m -> 145m)", "measurement_window_m": 30.0, "notes": "Start 21:53 CEST; Gold: Mollie O'Callaghan (1:53.27 OR). Fallback window 115m->135m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "200m Freestyle", "distance_m": 200, "event_category": "Middle", "rank": 4, "participant_code": "1967088", "athlete_key": NaN, "athlete_name": "HARVEY Mary-Sophie", "noc": "CAN", "final_time_sec": 115.29, "whole_race_velocity_ms": 1.7348, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 8, "reaction_time_sec": 0.71, "target_lap_number": 3, "target_lap_50m_sec": 29.41, "target_lap_velocity_ms": 1.7001, "final_date": "2024-07-29", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-200m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 3 of 4 (115m -> 145m)", "measurement_window_m": 30.0, "notes": "Start 21:53 CEST; Gold: Mollie O'Callaghan (1:53.27 OR). Fallback window 115m->135m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "200m Freestyle", "distance_m": 200, "event_category": "Middle", "rank": 5, "participant_code": "1945159", "athlete_key": "p24_1945159", "athlete_name": "YANG Junxuan", "noc": "CHN", "final_time_sec": 115.38, "whole_race_velocity_ms": 1.7334, "height_m": 1.72, "mass_kg": 67.0, "bmi": 22.65, "whole_race_froude": 0.422, "wa_points": 920.0, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 2, "reaction_time_sec": 0.69, "target_lap_number": 3, "target_lap_50m_sec": 29.83, "target_lap_velocity_ms": 1.6762, "final_date": "2024-07-29", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-200m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 3 of 4 (115m -> 145m)", "measurement_window_m": 30.0, "notes": "Start 21:53 CEST; Gold: Mollie O'Callaghan (1:53.27 OR). Fallback window 115m->135m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "200m Freestyle", "distance_m": 200, "event_category": "Middle", "rank": 6, "participant_code": "1895300", "athlete_key": "p24_1895300", "athlete_name": "SEEMANOVA Barbora", "noc": "CZE", "final_time_sec": 115.47, "whole_race_velocity_ms": 1.7321, "height_m": 1.75, "mass_kg": 56.0, "bmi": 18.29, "whole_race_froude": 0.418, "wa_points": 918.0, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 7, "reaction_time_sec": 0.63, "target_lap_number": 3, "target_lap_50m_sec": 29.76, "target_lap_velocity_ms": 1.6801, "final_date": "2024-07-29", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-200m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 3 of 4 (115m -> 145m)", "measurement_window_m": 30.0, "notes": "Start 21:53 CEST; Gold: Mollie O'Callaghan (1:53.27 OR). Fallback window 115m->135m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "200m Freestyle", "distance_m": 200, "event_category": "Middle", "rank": 7, "participant_code": "1940014", "athlete_key": "p24_1940014", "athlete_name": "FAIRWEATHER Erika", "noc": "NZL", "final_time_sec": 115.59, "whole_race_velocity_ms": 1.7303, "height_m": 1.7, "mass_kg": 59.0, "bmi": 20.42, "whole_race_froude": 0.4237, "wa_points": 915.0, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 1, "reaction_time_sec": 0.74, "target_lap_number": 3, "target_lap_50m_sec": 29.65, "target_lap_velocity_ms": 1.6863, "final_date": "2024-07-29", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-200m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 3 of 4 (115m -> 145m)", "measurement_window_m": 30.0, "notes": "Start 21:53 CEST; Gold: Mollie O'Callaghan (1:53.27 OR). Fallback window 115m->135m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "200m Freestyle", "distance_m": 200, "event_category": "Middle", "rank": 8, "participant_code": "1936000", "athlete_key": NaN, "athlete_name": "WEINSTEIN Claire", "noc": "USA", "final_time_sec": 116.6, "whole_race_velocity_ms": 1.7153, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 3, "reaction_time_sec": 0.75, "target_lap_number": 3, "target_lap_50m_sec": 29.71, "target_lap_velocity_ms": 1.6829, "final_date": "2024-07-29", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-200m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 3 of 4 (115m -> 145m)", "measurement_window_m": 30.0, "notes": "Start 21:53 CEST; Gold: Mollie O'Callaghan (1:53.27 OR). Fallback window 115m->135m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "400m Freestyle", "distance_m": 400, "event_category": "Middle", "rank": 1, "participant_code": "1946150", "athlete_key": NaN, "athlete_name": "TITMUS Ariarne", "noc": "AUS", "final_time_sec": 237.49, "whole_race_velocity_ms": 1.6843, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 5, "reaction_time_sec": 0.72, "target_lap_number": 4, "target_lap_50m_sec": 30.01, "target_lap_velocity_ms": 1.6661, "final_date": "2024-07-27", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-400m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 4 of 8 (165m -> 195m)", "measurement_window_m": 30.0, "notes": "Start 20:52 CEST; Gold: Ariarne Titmus (3:57.49). Fallback window 165m->185m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "400m Freestyle", "distance_m": 400, "event_category": "Middle", "rank": 2, "participant_code": "1967140", "athlete_key": NaN, "athlete_name": "McINTOSH Summer", "noc": "CAN", "final_time_sec": 238.37, "whole_race_velocity_ms": 1.6781, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 6, "reaction_time_sec": 0.74, "target_lap_number": 4, "target_lap_50m_sec": 29.96, "target_lap_velocity_ms": 1.6689, "final_date": "2024-07-27", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-400m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 4 of 8 (165m -> 195m)", "measurement_window_m": 30.0, "notes": "Start 20:52 CEST; Gold: Ariarne Titmus (3:57.49). Fallback window 165m->185m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "400m Freestyle", "distance_m": 400, "event_category": "Middle", "rank": 3, "participant_code": "1935938", "athlete_key": "p24_1935938", "athlete_name": "LEDECKY Katie", "noc": "USA", "final_time_sec": 240.86, "whole_race_velocity_ms": 1.6607, "height_m": 1.83, "mass_kg": 73.0, "bmi": 21.8, "whole_race_froude": 0.392, "wa_points": 933.0, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 4, "reaction_time_sec": 0.68, "target_lap_number": 4, "target_lap_50m_sec": 30.63, "target_lap_velocity_ms": 1.6324, "final_date": "2024-07-27", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-400m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 4 of 8 (165m -> 195m)", "measurement_window_m": 30.0, "notes": "Start 20:52 CEST; Gold: Ariarne Titmus (3:57.49). Fallback window 165m->185m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "400m Freestyle", "distance_m": 400, "event_category": "Middle", "rank": 4, "participant_code": "1940014", "athlete_key": "p24_1940014", "athlete_name": "FAIRWEATHER Erika", "noc": "NZL", "final_time_sec": 241.12, "whole_race_velocity_ms": 1.6589, "height_m": 1.7, "mass_kg": 59.0, "bmi": 20.42, "whole_race_froude": 0.4062, "wa_points": 930.0, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 3, "reaction_time_sec": 0.75, "target_lap_number": 4, "target_lap_50m_sec": 30.74, "target_lap_velocity_ms": 1.6265, "final_date": "2024-07-27", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-400m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 4 of 8 (165m -> 195m)", "measurement_window_m": 30.0, "notes": "Start 20:52 CEST; Gold: Ariarne Titmus (3:57.49). Fallback window 165m->185m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "400m Freestyle", "distance_m": 400, "event_category": "Middle", "rank": 5, "participant_code": "1907171", "athlete_key": NaN, "athlete_name": "GOSE Isabel", "noc": "GER", "final_time_sec": 242.14, "whole_race_velocity_ms": 1.6519, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 8, "reaction_time_sec": 0.75, "target_lap_number": 4, "target_lap_50m_sec": 30.62, "target_lap_velocity_ms": 1.6329, "final_date": "2024-07-27", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-400m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 4 of 8 (165m -> 195m)", "measurement_window_m": 30.0, "notes": "Start 20:52 CEST; Gold: Ariarne Titmus (3:57.49). Fallback window 165m->185m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "400m Freestyle", "distance_m": 400, "event_category": "Middle", "rank": 6, "participant_code": "1935943", "athlete_key": NaN, "athlete_name": "MADDEN Paige", "noc": "USA", "final_time_sec": 242.26, "whole_race_velocity_ms": 1.6511, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 7, "reaction_time_sec": 0.73, "target_lap_number": 4, "target_lap_50m_sec": 30.68, "target_lap_velocity_ms": 1.6297, "final_date": "2024-07-27", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-400m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 4 of 8 (165m -> 195m)", "measurement_window_m": 30.0, "notes": "Start 20:52 CEST; Gold: Ariarne Titmus (3:57.49). Fallback window 165m->185m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "400m Freestyle", "distance_m": 400, "event_category": "Middle", "rank": 7, "participant_code": "1954371", "athlete_key": NaN, "athlete_name": "COSTA Maria Fernanda", "noc": "BRA", "final_time_sec": 243.53, "whole_race_velocity_ms": 1.6425, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 1, "reaction_time_sec": 0.72, "target_lap_number": 4, "target_lap_50m_sec": 31.3, "target_lap_velocity_ms": 1.5974, "final_date": "2024-07-27", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-400m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 4 of 8 (165m -> 195m)", "measurement_window_m": 30.0, "notes": "Start 20:52 CEST; Gold: Ariarne Titmus (3:57.49). Fallback window 165m->185m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "400m Freestyle", "distance_m": 400, "event_category": "Middle", "rank": 8, "participant_code": "1946188", "athlete_key": NaN, "athlete_name": "PERKINS Jamie", "noc": "AUS", "final_time_sec": 244.96, "whole_race_velocity_ms": 1.6329, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 2, "reaction_time_sec": 0.76, "target_lap_number": 4, "target_lap_50m_sec": 31.12, "target_lap_velocity_ms": 1.6067, "final_date": "2024-07-27", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-400m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 4 of 8 (165m -> 195m)", "measurement_window_m": 30.0, "notes": "Start 20:52 CEST; Gold: Ariarne Titmus (3:57.49). Fallback window 165m->185m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "800m Freestyle", "distance_m": 800, "event_category": "Distance", "rank": 1, "participant_code": "1935938", "athlete_key": "p24_1935938", "athlete_name": "LEDECKY Katie", "noc": "USA", "final_time_sec": 491.04, "whole_race_velocity_ms": 1.6292, "height_m": 1.83, "mass_kg": 73.0, "bmi": 21.8, "whole_race_froude": 0.3845, "wa_points": 962.0, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 4, "reaction_time_sec": 0.68, "target_lap_number": 8, "target_lap_50m_sec": 31.15, "target_lap_velocity_ms": 1.6051, "final_date": "2024-08-03", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-800m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 8 of 16 (365m -> 395m)", "measurement_window_m": 30.0, "notes": "Start 21:28 CEST; Gold: Katie Ledecky (8:11.04). Fallback window 365m->385m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "800m Freestyle", "distance_m": 800, "event_category": "Distance", "rank": 2, "participant_code": "1946150", "athlete_key": NaN, "athlete_name": "TITMUS Ariarne", "noc": "AUS", "final_time_sec": 492.29, "whole_race_velocity_ms": 1.6251, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 3, "reaction_time_sec": 0.73, "target_lap_number": 8, "target_lap_50m_sec": 31.12, "target_lap_velocity_ms": 1.6067, "final_date": "2024-08-03", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-800m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 8 of 16 (365m -> 395m)", "measurement_window_m": 30.0, "notes": "Start 21:28 CEST; Gold: Katie Ledecky (8:11.04). Fallback window 365m->385m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "800m Freestyle", "distance_m": 800, "event_category": "Distance", "rank": 3, "participant_code": "1935943", "athlete_key": NaN, "athlete_name": "MADDEN Paige", "noc": "USA", "final_time_sec": 493.0, "whole_race_velocity_ms": 1.6227, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 5, "reaction_time_sec": 0.72, "target_lap_number": 8, "target_lap_50m_sec": 31.15, "target_lap_velocity_ms": 1.6051, "final_date": "2024-08-03", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-800m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 8 of 16 (365m -> 395m)", "measurement_window_m": 30.0, "notes": "Start 21:28 CEST; Gold: Katie Ledecky (8:11.04). Fallback window 365m->385m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "800m Freestyle", "distance_m": 800, "event_category": "Distance", "rank": 4, "participant_code": "1925632", "athlete_key": NaN, "athlete_name": "QUADARELLA Simona", "noc": "ITA", "final_time_sec": 494.55, "whole_race_velocity_ms": 1.6176, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 7, "reaction_time_sec": 0.77, "target_lap_number": 8, "target_lap_50m_sec": 30.98, "target_lap_velocity_ms": 1.6139, "final_date": "2024-08-03", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-800m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 8 of 16 (365m -> 395m)", "measurement_window_m": 30.0, "notes": "Start 21:28 CEST; Gold: Katie Ledecky (8:11.04). Fallback window 365m->385m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "800m Freestyle", "distance_m": 800, "event_category": "Distance", "rank": 5, "participant_code": "1907171", "athlete_key": NaN, "athlete_name": "GOSE Isabel", "noc": "GER", "final_time_sec": 497.82, "whole_race_velocity_ms": 1.607, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 2, "reaction_time_sec": 0.79, "target_lap_number": 8, "target_lap_50m_sec": 31.22, "target_lap_velocity_ms": 1.6015, "final_date": "2024-08-03", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-800m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 8 of 16 (365m -> 395m)", "measurement_window_m": 30.0, "notes": "Start 21:28 CEST; Gold: Katie Ledecky (8:11.04). Fallback window 365m->385m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "800m Freestyle", "distance_m": 800, "event_category": "Distance", "rank": 6, "participant_code": "1946201", "athlete_key": NaN, "athlete_name": "PALLISTER Lani", "noc": "AUS", "final_time_sec": 501.09, "whole_race_velocity_ms": 1.5965, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 6, "reaction_time_sec": 0.68, "target_lap_number": 8, "target_lap_50m_sec": 31.43, "target_lap_velocity_ms": 1.5908, "final_date": "2024-08-03", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-800m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 8 of 16 (365m -> 395m)", "measurement_window_m": 30.0, "notes": "Start 21:28 CEST; Gold: Katie Ledecky (8:11.04). Fallback window 365m->385m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "800m Freestyle", "distance_m": 800, "event_category": "Distance", "rank": 7, "participant_code": "1909209", "athlete_key": NaN, "athlete_name": "KIRPICHNIKOVA Anastasiia", "noc": "FRA", "final_time_sec": 502.8, "whole_race_velocity_ms": 1.5911, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 8, "reaction_time_sec": 0.73, "target_lap_number": 8, "target_lap_50m_sec": 31.46, "target_lap_velocity_ms": 1.5893, "final_date": "2024-08-03", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-800m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 8 of 16 (365m -> 395m)", "measurement_window_m": 30.0, "notes": "Start 21:28 CEST; Gold: Katie Ledecky (8:11.04). Fallback window 365m->385m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "800m Freestyle", "distance_m": 800, "event_category": "Distance", "rank": 8, "participant_code": "1940014", "athlete_key": "p24_1940014", "athlete_name": "FAIRWEATHER Erika", "noc": "NZL", "final_time_sec": 503.27, "whole_race_velocity_ms": 1.5896, "height_m": 1.7, "mass_kg": 59.0, "bmi": 20.42, "whole_race_froude": 0.3893, "wa_points": 899.0, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 1, "reaction_time_sec": 0.75, "target_lap_number": 8, "target_lap_50m_sec": 32.04, "target_lap_velocity_ms": 1.5605, "final_date": "2024-08-03", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-800m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 8 of 16 (365m -> 395m)", "measurement_window_m": 30.0, "notes": "Start 21:28 CEST; Gold: Katie Ledecky (8:11.04). Fallback window 365m->385m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "1500m Freestyle", "distance_m": 1500, "event_category": "Distance", "rank": 1, "participant_code": "1935938", "athlete_key": "p24_1935938", "athlete_name": "LEDECKY Katie", "noc": "USA", "final_time_sec": 930.02, "whole_race_velocity_ms": 1.6129, "height_m": 1.83, "mass_kg": 73.0, "bmi": 21.8, "whole_race_froude": 0.3807, "wa_points": 969.0, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 4, "reaction_time_sec": 0.68, "target_lap_number": 15, "target_lap_50m_sec": 31.62, "target_lap_velocity_ms": 1.5813, "final_date": "2024-07-31", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-1500m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 15 of 30 (715m -> 745m)", "measurement_window_m": 30.0, "notes": "Start 21:13 CEST; Gold: Katie Ledecky (15:30.02 OR). Fallback window 715m->735m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "1500m Freestyle", "distance_m": 1500, "event_category": "Distance", "rank": 2, "participant_code": "1909209", "athlete_key": NaN, "athlete_name": "KIRPICHNIKOVA Anastasiia", "noc": "FRA", "final_time_sec": 940.35, "whole_race_velocity_ms": 1.5952, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 3, "reaction_time_sec": 0.74, "target_lap_number": 15, "target_lap_50m_sec": 31.72, "target_lap_velocity_ms": 1.5763, "final_date": "2024-07-31", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-1500m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 15 of 30 (715m -> 745m)", "measurement_window_m": 30.0, "notes": "Start 21:13 CEST; Gold: Katie Ledecky (15:30.02 OR). Fallback window 715m->735m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "1500m Freestyle", "distance_m": 1500, "event_category": "Distance", "rank": 3, "participant_code": "1907171", "athlete_key": NaN, "athlete_name": "GOSE Isabel", "noc": "GER", "final_time_sec": 941.16, "whole_race_velocity_ms": 1.5938, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 6, "reaction_time_sec": 0.76, "target_lap_number": 15, "target_lap_50m_sec": 31.53, "target_lap_velocity_ms": 1.5858, "final_date": "2024-07-31", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-1500m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 15 of 30 (715m -> 745m)", "measurement_window_m": 30.0, "notes": "Start 21:13 CEST; Gold: Katie Ledecky (15:30.02 OR). Fallback window 715m->735m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "1500m Freestyle", "distance_m": 1500, "event_category": "Distance", "rank": 4, "participant_code": "1925632", "athlete_key": NaN, "athlete_name": "QUADARELLA Simona", "noc": "ITA", "final_time_sec": 944.05, "whole_race_velocity_ms": 1.5889, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 5, "reaction_time_sec": 0.77, "target_lap_number": 15, "target_lap_50m_sec": 31.47, "target_lap_velocity_ms": 1.5888, "final_date": "2024-07-31", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-1500m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 15 of 30 (715m -> 745m)", "measurement_window_m": 30.0, "notes": "Start 21:13 CEST; Gold: Katie Ledecky (15:30.02 OR). Fallback window 715m->735m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "1500m Freestyle", "distance_m": 1500, "event_category": "Distance", "rank": 5, "participant_code": "1945169", "athlete_key": NaN, "athlete_name": "LI Bingjie", "noc": "CHN", "final_time_sec": 961.03, "whole_race_velocity_ms": 1.5608, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 7, "reaction_time_sec": 0.68, "target_lap_number": 15, "target_lap_50m_sec": 32.16, "target_lap_velocity_ms": 1.5547, "final_date": "2024-07-31", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-1500m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 15 of 30 (715m -> 745m)", "measurement_window_m": 30.0, "notes": "Start 21:13 CEST; Gold: Katie Ledecky (15:30.02 OR). Fallback window 715m->735m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "1500m Freestyle", "distance_m": 1500, "event_category": "Distance", "rank": 6, "participant_code": "1945588", "athlete_key": NaN, "athlete_name": "JOHNSON Moesha", "noc": "AUS", "final_time_sec": 962.7, "whole_race_velocity_ms": 1.5581, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 2, "reaction_time_sec": 0.76, "target_lap_number": 15, "target_lap_50m_sec": 32.21, "target_lap_velocity_ms": 1.5523, "final_date": "2024-07-31", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-1500m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 15 of 30 (715m -> 745m)", "measurement_window_m": 30.0, "notes": "Start 21:13 CEST; Gold: Katie Ledecky (15:30.02 OR). Fallback window 715m->735m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "1500m Freestyle", "distance_m": 1500, "event_category": "Distance", "rank": 7, "participant_code": "1951597", "athlete_key": "p24_1951597", "athlete_name": "DIZOTTI Beatriz", "noc": "BRA", "final_time_sec": 962.86, "whole_race_velocity_ms": 1.5579, "height_m": 1.66, "mass_kg": 63.0, "bmi": 22.86, "whole_race_froude": 0.386, "wa_points": 873.0, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 1, "reaction_time_sec": 0.69, "target_lap_number": 15, "target_lap_50m_sec": 32.05, "target_lap_velocity_ms": 1.5601, "final_date": "2024-07-31", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-1500m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 15 of 30 (715m -> 745m)", "measurement_window_m": 30.0, "notes": "Start 21:13 CEST; Gold: Katie Ledecky (15:30.02 OR). Fallback window 715m->735m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}, {"sex": "Women", "event": "1500m Freestyle", "distance_m": 1500, "event_category": "Distance", "rank": 8, "participant_code": "1907231", "athlete_key": NaN, "athlete_name": "MARTENS Leonie", "noc": "GER", "final_time_sec": 972.57, "whole_race_velocity_ms": 1.5423, "height_m": NaN, "mass_kg": NaN, "bmi": NaN, "whole_race_froude": NaN, "wa_points": NaN, "segment_distance_m": NaN, "segment_time_sec": NaN, "stroke_cycles": NaN, "source_notes": NaN, "lane": 8, "reaction_time_sec": 0.79, "target_lap_number": 15, "target_lap_50m_sec": 32.36, "target_lap_velocity_ms": 1.5451, "final_date": "2024-07-31", "video_url": "https://olympics.com/en/paris-2024/videos/women-s-1500m-freestyle-final-swimming-olympic-games-paris-2024", "recommended_lap_to_measure": "Lap 15 of 30 (715m -> 745m)", "measurement_window_m": 30.0, "notes": "Start 21:13 CEST; Gold: Katie Ledecky (15:30.02 OR). Fallback window 715m->735m (20.0m) if camera cuts. Regional mirror: YouTube @Olympics / NBC / CBC Sports."}];
+const EXPORT_COLS = ["sex", "event", "distance_m", "event_category", "rank", "participant_code", "athlete_key", "athlete_name", "noc", "final_time_sec", "whole_race_velocity_ms", "height_m", "mass_kg", "bmi", "whole_race_froude", "wa_points", "segment_distance_m", "segment_time_sec", "stroke_cycles", "source_notes"];
+const STORAGE_KEY = "paris2024_kinematics_tagger_v1";
+
+let rows = [];
+let selectedIdx = 0;
+let mode = "A";
+let stampStartSec = null;
+let swStartPerf = null;
+let swInterval = null;
+
+function initData() {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length === DEFAULT_ROWS.length) {
+        rows = parsed;
+        return;
+      }
+    } catch (e) {}
+  }
+  rows = DEFAULT_ROWS.map(r => ({ ...r }));
+}
+
+function persist() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
+}
+
+function isLogged(r) {
+  return Number(r.segment_distance_m) > 0 && Number(r.segment_time_sec) > 0 && Number(r.stroke_cycles) > 0;
+}
+
+function isMatched(r) {
+  return r.height_m !== null && r.height_m !== "" && !isNaN(Number(r.height_m)) &&
+         r.mass_kg !== null && r.mass_kg !== "" && !isNaN(Number(r.mass_kg));
+}
+
+function computeMetrics(r, segDist, segTime, cycles) {
+  const d = Number(segDist), t = Number(segTime), c = Number(cycles);
+  if (!(d > 0 && t > 0 && c > 0)) return null;
+  const cleanV = d / t;
+  const wholeV = Number(r.whole_race_velocity_ms);
+  const inflation = wholeV - cleanV;
+  const sr = c / t;
+  const sl = cleanV / sr;
+  const si = cleanV * sl;
+  const h = isMatched(r) ? Number(r.height_m) : null;
+  const cleanFr = h ? cleanV / Math.sqrt(9.81 * h) : null;
+  const wholeFr = h ? wholeV / Math.sqrt(9.81 * h) : null;
+
+  const flags = {
+    v: (cleanV < 1.3 || cleanV > 2.4) || (r.event_category === "Sprint" && (cleanV - wholeV) > 0.05),
+    sl: (sl < 1.5 || sl > 2.9),
+    sr: (sr < 0.50 || sr > 1.15),
+  };
+  return { cleanV, inflation, sr, sl, si, cleanFr, wholeFr, flags, anyFlag: flags.v || flags.sl || flags.sr };
+}
+
+function parseTimestamp(str) {
+  if (!str) return NaN;
+  const s = String(str).trim();
+  if (!s) return NaN;
+  const parts = s.split(":");
+  if (parts.length === 1) return Number(parts[0]);
+  if (parts.length === 2) return Number(parts[0]) * 60 + Number(parts[1]);
+  if (parts.length === 3) return Number(parts[0]) * 3600 + Number(parts[1]) * 60 + Number(parts[2]);
+  return NaN;
+}
+
+function populateEventFilter() {
+  const sel = document.getElementById("eventFilter");
+  const seen = new Set();
+  rows.forEach(r => {
+    const key = `${r.sex} | ${r.event}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      const opt = document.createElement("option");
+      opt.value = key;
+      opt.textContent = key;
+      sel.appendChild(opt);
+    }
+  });
+}
+
+function getFilteredIndices() {
+  const evFilter = document.getElementById("eventFilter").value;
+  const q = document.getElementById("searchFilter").value.trim().toLowerCase();
+  const matchedOnly = document.getElementById("matchedOnlyToggle").checked;
+  const unloggedOnly = document.getElementById("unloggedOnlyToggle").checked;
+  const idxs = [];
+  rows.forEach((r, i) => {
+    if (evFilter !== "ALL" && `${r.sex} | ${r.event}` !== evFilter) return;
+    if (matchedOnly && !isMatched(r)) return;
+    if (unloggedOnly && isLogged(r)) return;
+    if (q && !`${r.athlete_name} ${r.noc} ${r.event}`.toLowerCase().includes(q)) return;
+    idxs.push(i);
+  });
+  return idxs;
+}
+
+function renderRoster() {
+  const list = document.getElementById("rosterList");
+  list.innerHTML = "";
+  const idxs = getFilteredIndices();
+
+  let nLogged = 0, nMatchedLogged = 0;
+  rows.forEach(r => {
+    if (isLogged(r)) {
+      nLogged++;
+      if (isMatched(r)) nMatchedLogged++;
+    }
+  });
+  document.getElementById("statLogged").textContent = `Logged: ${nLogged} / ${rows.length}`;
+  document.getElementById("statMatched").textContent = `Tier 2 Matched: ${nMatchedLogged} / 31`;
+
+  idxs.forEach(i => {
+    const r = rows[i];
+    const div = document.createElement("div");
+    div.className = "swimmer-item" + (i === selectedIdx ? " selected" : "");
+    const m = isLogged(r) ? computeMetrics(r, r.segment_distance_m, r.segment_time_sec, r.stroke_cycles) : null;
+    let badges = "";
+    if (isMatched(r)) badges += `<span class="badge matched">T2</span> `;
+    if (m) {
+      badges += m.anyFlag
+        ? `<span class="badge warn">FLAG</span>`
+        : `<span class="badge done">OK</span>`;
+    }
+    div.innerHTML = `
+      <div>
+        <div class="name">#${r.rank} ${r.athlete_name} (${r.noc})</div>
+        <div class="meta">${r.sex} ${r.event.replace(" Freestyle","")} · Lane ${r.lane ?? "?"} · ${r.final_time_sec}s</div>
+      </div>
+      <div>${badges}</div>
+    `;
+    div.onclick = () => selectSwimmer(i);
+    list.appendChild(div);
+  });
+}
+
+function selectSwimmer(idx) {
+  selectedIdx = idx;
+  stampStartSec = null;
+  const r = rows[idx];
+  document.getElementById("swTitle").textContent = `${r.athlete_name} (${r.noc}) — ${r.sex} ${r.event}`;
+  document.getElementById("swBadges").innerHTML =
+    (isMatched(r) ? `<span class="badge matched">Matched Returning Olympian (Tier 2)</span> ` : "") +
+    `<span class="badge" style="background:#334155;">Lane ${r.lane ?? "?"} · Rank #${r.rank}</span>`;
+
+  const info = [
+    ["Final Time", `${r.final_time_sec} s`],
+    ["Whole-Race Speed", `${Number(r.whole_race_velocity_ms).toFixed(3)} m/s`],
+    ["Reaction Time", r.reaction_time_sec ? `${r.reaction_time_sec} s` : "—"],
+    ["Target Lap 50m", r.target_lap_50m_sec ? `Lap ${r.target_lap_number}: ${r.target_lap_50m_sec}s (${Number(r.target_lap_velocity_ms).toFixed(3)} m/s)` : "—"],
+    ["Height / Mass", isMatched(r) ? `${r.height_m} m / ${r.mass_kg} kg` : "Unmatched (NaN)"],
+    ["Whole-Race Fr", isMatched(r) ? Number(r.whole_race_froude).toFixed(3) : "—"],
+  ];
+  document.getElementById("swInfoGrid").innerHTML = info.map(([k, v]) =>
+    `<div class="kv"><div class="k">${k}</div><div class="v">${v}</div></div>`
+  ).join("");
+
+  document.getElementById("swVideoInfo").innerHTML =
+    `<strong>Recommended Window:</strong> ${r.recommended_lap_to_measure || "15m -> 45m"} (${r.measurement_window_m || 30.0} m) · ` +
+    `<strong>Final Date:</strong> ${r.final_date || ""} · ` +
+    (r.video_url ? `<a href="${r.video_url}" target="_blank" rel="noopener">Open Official Olympics.com Replay ↗</a>` : "");
+
+  document.getElementById("inpSegDist").value = r.segment_distance_m ?? (r.measurement_window_m || 30.0);
+  document.getElementById("inpSegTime").value = r.segment_time_sec ?? "";
+  document.getElementById("inpCycles").value = r.stroke_cycles ?? "";
+  document.getElementById("inpNotes").value = r.source_notes ?? "";
+  document.getElementById("inpStartTs").value = "";
+  document.getElementById("inpEndTs").value = "";
+
+  renderRoster();
+  renderSanityChecks();
+}
+
+function renderSanityChecks() {
+  const r = rows[selectedIdx];
+  const segDist = document.getElementById("inpSegDist").value;
+  const segTime = document.getElementById("inpSegTime").value;
+  const cycles = document.getElementById("inpCycles").value;
+  const m = computeMetrics(r, segDist, segTime, cycles);
+  const el = document.getElementById("sanityChecks");
+  if (!m) {
+    el.innerHTML = `<div class="check-box"><div class="msg">Enter segment_distance_m, segment_time_sec, and stroke_cycles to see live checks.</div></div>`;
+    return;
+  }
+
+  const vMsg = m.flags.v
+    ? (m.cleanV < 1.3 || m.cleanV > 2.4
+        ? "OUT OF RANGE [1.3–2.4 m/s]!"
+        : `Faster than whole-race (${Number(r.whole_race_velocity_ms).toFixed(3)}) by >0.05 m/s in Sprint!`)
+    : `OK (Inflation: ${m.inflation >= 0 ? "+" : ""}${m.inflation.toFixed(3)} m/s)`;
+
+  const slMsg = m.flags.sl
+    ? "OUT OF RANGE [1.5–2.9 m/cycle]! Check if single arm pulls were counted instead of 2-arm cycles."
+    : "OK (within 1.5–2.9 m/cycle)";
+
+  const srMsg = m.flags.sr
+    ? "OUT OF RANGE [0.50–1.15 Hz / 30–69 cpm]!"
+    : `OK (${(m.sr * 60).toFixed(1)} cycles/min)`;
+
+  let frHtml = "";
+  if (m.cleanFr !== null) {
+    const regime = m.cleanFr > 0.42 ? "> 0.42 (Supercritical)" : "≤ 0.42 (Sub-hull)";
+    frHtml = `
+      <div class="check-box ok">
+        <div class="k" style="font-size:11px;color:var(--muted);">CLEAN FROUDE (Fr)</div>
+        <div class="val">${m.cleanFr.toFixed(3)}</div>
+        <div class="msg">${regime} · Whole Fr = ${m.wholeFr.toFixed(3)}</div>
+      </div>`;
+  }
+
+  el.innerHTML = `
+    <div class="check-box ${m.flags.v ? "flag" : "ok"}">
+      <div class="k" style="font-size:11px;color:var(--muted);">CLEAN VELOCITY</div>
+      <div class="val">${m.cleanV.toFixed(3)} m/s</div>
+      <div class="msg">${vMsg}</div>
+    </div>
+    <div class="check-box ${m.flags.sl ? "flag" : "ok"}">
+      <div class="k" style="font-size:11px;color:var(--muted);">STROKE LENGTH (SL)</div>
+      <div class="val">${m.sl.toFixed(2)} m/cyc</div>
+      <div class="msg">${slMsg}</div>
+    </div>
+    <div class="check-box ${m.flags.sr ? "flag" : "ok"}">
+      <div class="k" style="font-size:11px;color:var(--muted);">STROKE RATE (SR)</div>
+      <div class="val">${m.sr.toFixed(3)} Hz</div>
+      <div class="msg">${srMsg}</div>
+    </div>
+    <div class="check-box ok">
+      <div class="k" style="font-size:11px;color:var(--muted);">STROKE INDEX (SI)</div>
+      <div class="val">${m.si.toFixed(2)} m²/s</div>
+      <div class="msg">Efficiency proxy (v × SL)</div>
+    </div>
+    ${frHtml}
+  `;
+}
+
+function saveCurrent(advance = false) {
+  const r = rows[selectedIdx];
+  const d = document.getElementById("inpSegDist").value;
+  const t = document.getElementById("inpSegTime").value;
+  const c = document.getElementById("inpCycles").value;
+  const n = document.getElementById("inpNotes").value.trim();
+
+  r.segment_distance_m = d !== "" ? Number(d) : null;
+  r.segment_time_sec = t !== "" ? Number(Number(t).toFixed(3)) : null;
+  r.stroke_cycles = c !== "" ? Number(c) : null;
+  r.source_notes = n;
+  persist();
+  renderRoster();
+  renderSanityChecks();
+
+  if (advance) {
+    const idxs = getFilteredIndices();
+    const pos = idxs.indexOf(selectedIdx);
+    if (pos !== -1 && pos + 1 < idxs.length) {
+      selectSwimmer(idxs[pos + 1]);
+    }
+  }
+}
+
+function addCycles(delta) {
+  const inp = document.getElementById("inpCycles");
+  const cur = Number(inp.value) || 0;
+  inp.value = Math.max(0, +(cur + delta).toFixed(1));
+  renderSanityChecks();
+}
+
+// CSV Export (exact 20-column schema of paris2024_kinematics_template.csv)
+function csvEscape(v) {
+  if (v === null || v === undefined) return "";
+  const s = String(v);
+  if (s.includes(",") || s.includes('"') || s.includes("\n")) {
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+  return s;
+}
+
+function exportCSV() {
+  const lines = [EXPORT_COLS.join(",")];
+  rows.forEach(r => {
+    lines.push(EXPORT_COLS.map(c => csvEscape(r[c])).join(","));
+  });
+  const blob = new Blob([lines.join("\n") + "\n"], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "paris2024_kinematics.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// RFC-4180 CSV parser for importing existing paris2024_kinematics.csv
+function parseCSVText(text) {
+  const out = [];
+  let row = [], val = "", inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i], next = text[i + 1];
+    if (inQuotes) {
+      if (ch === '"' && next === '"') { val += '"'; i++; }
+      else if (ch === '"') inQuotes = false;
+      else val += ch;
+    } else {
+      if (ch === '"') inQuotes = true;
+      else if (ch === ',') { row.push(val); val = ""; }
+      else if (ch === '\n' || ch === '\r') {
+        if (ch === '\r' && next === '\n') i++;
+        row.push(val); val = "";
+        if (row.some(x => x !== "")) out.push(row);
+        row = [];
+      } else val += ch;
+    }
+  }
+  if (val !== "" || row.length > 0) { row.push(val); out.push(row); }
+  return out;
+}
+
+function importCSV(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const grid = parseCSVText(e.target.result);
+    if (grid.length < 2) return;
+    const hdr = grid[0].map(h => h.trim());
+    const idxMap = Object.fromEntries(hdr.map((h, i) => [h, i]));
+    let updated = 0;
+    for (let i = 1; i < grid.length; i++) {
+      const g = grid[i];
+      const pcode = g[idxMap["participant_code"]];
+      const evt = g[idxMap["event"]];
+      const sex = g[idxMap["sex"]];
+      const target = rows.find(r => String(r.participant_code) === String(pcode) && r.event === evt && r.sex === sex);
+      if (target) {
+        for (const col of ["segment_distance_m", "segment_time_sec", "stroke_cycles", "source_notes"]) {
+          if (idxMap[col] !== undefined) {
+            const raw = g[idxMap[col]];
+            if (col === "source_notes") target[col] = raw ?? "";
+            else target[col] = (raw !== undefined && raw !== "") ? Number(raw) : null;
+          }
+        }
+        updated++;
+      }
+    }
+    persist();
+    selectSwimmer(selectedIdx);
+    alert(`Imported measurements for ${updated} rows from ${file.name}.`);
+  };
+  reader.readAsText(file);
+}
+
+// Video & Stopwatch controls
+const vid = document.getElementById("videoPlayer");
+vid.addEventListener("timeupdate", () => {
+  document.getElementById("vidTimeDisplay").textContent = `t = ${vid.currentTime.toFixed(3)} s`;
+});
+
+function stepFrame(n) {
+  if (!vid.src) return;
+  vid.pause();
+  const fps = Number(document.getElementById("fpsSelect").value) || 30;
+  vid.currentTime = Math.max(0, vid.currentTime + n / fps);
+  document.getElementById("vidTimeDisplay").textContent = `t = ${vid.currentTime.toFixed(3)} s`;
+}
+
+function stampStart() {
+  if (mode === "A") {
+    stampStartSec = vid.currentTime;
+    document.getElementById("inpStartTs").value = stampStartSec.toFixed(3);
+  } else {
+    swStartPerf = performance.now();
+    clearInterval(swInterval);
+    swInterval = setInterval(() => {
+      const dt = (performance.now() - swStartPerf) / 1000;
+      document.getElementById("swDisplay").textContent = `${dt.toFixed(2)} s`;
+    }, 30);
+  }
+}
+
+function stampEnd() {
+  if (mode === "A") {
+    if (stampStartSec === null) { alert("Press 1 to stamp Start Time first."); return; }
+    const dt = vid.currentTime - stampStartSec;
+    if (dt <= 0) { alert("End time must be after Start time."); return; }
+    document.getElementById("inpEndTs").value = vid.currentTime.toFixed(3);
+    document.getElementById("inpSegTime").value = dt.toFixed(2);
+    renderSanityChecks();
+  } else {
+    if (swStartPerf === null) return;
+    clearInterval(swInterval);
+    const dt = (performance.now() - swStartPerf) / 1000;
+    swStartPerf = null;
+    document.getElementById("swDisplay").textContent = `${dt.toFixed(2)} s`;
+    document.getElementById("inpSegTime").value = dt.toFixed(2);
+    renderSanityChecks();
+  }
+}
+
+// Wire UI Events
+document.getElementById("eventFilter").onchange = renderRoster;
+document.getElementById("searchFilter").oninput = renderRoster;
+document.getElementById("matchedOnlyToggle").onchange = renderRoster;
+document.getElementById("unloggedOnlyToggle").onchange = renderRoster;
+document.getElementById("btnExport").onclick = exportCSV;
+document.getElementById("csvFileInput").onchange = e => { if (e.target.files[0]) importCSV(e.target.files[0]); };
+document.getElementById("btnResetStorage").onclick = () => {
+  if (confirm("Clear browser autosave and reload clean 96-finalist template?")) {
+    localStorage.removeItem(STORAGE_KEY);
+    initData();
+    selectSwimmer(0);
+  }
+};
+
+document.getElementById("tabModeA").onclick = () => {
+  mode = "A";
+  document.getElementById("tabModeA").classList.add("active");
+  document.getElementById("tabModeB").classList.remove("active");
+  document.getElementById("modeAPanel").style.display = "block";
+  document.getElementById("modeBPanel").style.display = "none";
+};
+document.getElementById("tabModeB").onclick = () => {
+  mode = "B";
+  document.getElementById("tabModeB").classList.add("active");
+  document.getElementById("tabModeA").classList.remove("active");
+  document.getElementById("modeAPanel").style.display = "none";
+  document.getElementById("modeBPanel").style.display = "block";
+};
+
+document.getElementById("videoFileInput").onchange = e => {
+  const f = e.target.files[0];
+  if (f) {
+    vid.src = URL.createObjectURL(f);
+    vid.playbackRate = Number(document.getElementById("speedSelect").value);
+  }
+};
+document.getElementById("speedSelect").onchange = e => { vid.playbackRate = Number(e.target.value); };
+document.getElementById("btnStepBack").onclick = () => stepFrame(-1);
+document.getElementById("btnStepFwd").onclick = () => stepFrame(1);
+document.getElementById("btnPlayPause").onclick = () => { if (vid.paused) vid.play(); else vid.pause(); };
+document.getElementById("btnStampStart").onclick = stampStart;
+document.getElementById("btnStampEnd").onclick = stampEnd;
+document.getElementById("btnAddCycle").onclick = () => addCycles(1);
+document.getElementById("btnAddHalfCycle").onclick = () => addCycles(0.5);
+document.getElementById("btnSubHalfCycle").onclick = () => addCycles(-0.5);
+document.getElementById("btnResetCycles").onclick = () => { document.getElementById("inpCycles").value = ""; renderSanityChecks(); };
+
+document.getElementById("btnSwStart").onclick = stampStart;
+document.getElementById("btnSwStop").onclick = stampEnd;
+document.getElementById("btnSwReset").onclick = () => {
+  clearInterval(swInterval); swStartPerf = null;
+  document.getElementById("swDisplay").textContent = "0.00 s";
+};
+document.getElementById("btnAddCycleB").onclick = () => addCycles(1);
+document.getElementById("btnAddHalfCycleB").onclick = () => addCycles(0.5);
+document.getElementById("btnResetCyclesB").onclick = () => { document.getElementById("inpCycles").value = ""; renderSanityChecks(); };
+
+document.getElementById("btnComputeTs").onclick = () => {
+  const t1 = parseTimestamp(document.getElementById("inpStartTs").value);
+  const t2 = parseTimestamp(document.getElementById("inpEndTs").value);
+  if (isNaN(t1) || isNaN(t2) || t2 <= t1) { alert("Enter valid Start and End timestamps (End > Start)."); return; }
+  document.getElementById("inpSegTime").value = (t2 - t1).toFixed(2);
+  renderSanityChecks();
+};
+
+document.getElementById("btnDist30").onclick = () => { document.getElementById("inpSegDist").value = "30.0"; renderSanityChecks(); };
+document.getElementById("btnDist20").onclick = () => { document.getElementById("inpSegDist").value = "20.0"; renderSanityChecks(); };
+["inpSegDist", "inpSegTime", "inpCycles"].forEach(id => {
+  document.getElementById(id).addEventListener("input", renderSanityChecks);
+});
+
+document.getElementById("btnSaveNext").onclick = () => saveCurrent(true);
+document.getElementById("btnSaveOnly").onclick = () => saveCurrent(false);
+document.getElementById("btnClearRow").onclick = () => {
+  document.getElementById("inpSegTime").value = "";
+  document.getElementById("inpCycles").value = "";
+  document.getElementById("inpNotes").value = "";
+  saveCurrent(false);
+};
+
+// Global keyboard shortcuts (disabled when typing in inputs)
+document.addEventListener("keydown", e => {
+  const tag = (e.target && e.target.tagName) ? e.target.tagName.toUpperCase() : "";
+  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
+    if (e.key === "Enter" && tag === "INPUT") { e.preventDefault(); saveCurrent(true); }
+    return;
+  }
+  if (e.key === ",") { e.preventDefault(); stepFrame(e.shiftKey ? -5 : -1); }
+  else if (e.key === ".") { e.preventDefault(); stepFrame(e.shiftKey ? 5 : 1); }
+  else if (e.key === "1") { e.preventDefault(); stampStart(); }
+  else if (e.key === "2") { e.preventDefault(); stampEnd(); }
+  else if (e.key === " " || e.key.toLowerCase() === "s") { e.preventDefault(); addCycles(1); }
+  else if (e.key.toLowerCase() === "h") { e.preventDefault(); addCycles(0.5); }
+  else if (e.key.toLowerCase() === "p" || e.key.toLowerCase() === "k") { e.preventDefault(); if (vid.src) { if (vid.paused) vid.play(); else vid.pause(); } }
+  else if (e.key === "Enter") { e.preventDefault(); saveCurrent(true); }
+});
+
+initData();
+populateEventFilter();
+selectSwimmer(0);
+</script>
+</body>
+</html>
