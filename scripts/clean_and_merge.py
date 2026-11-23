@@ -23,10 +23,18 @@ ROOT = Path(__file__).resolve().parent.parent
 RAW_DIR = ROOT / "data" / "raw"
 OUT_DIR = ROOT / "data" / "processed"
 
-TARGET_EVENTS_DIST = {"50m": 50, "100m": 100, "800m": 800, "1500m": 1500}
+TARGET_EVENTS_DIST = {
+    "50m": 50,
+    "100m": 100,
+    "200m": 200,
+    "400m": 400,
+    "800m": 800,
+    "1500m": 1500,
+}
 G = 9.81
-RHO_WATER = 998.0
-MU_WATER = 1e-3
+# World Aquatics standard competition pool water temperature (26 °C)
+RHO_WATER = 996.8  # kg/m^3
+MU_WATER = 8.7e-4  # Pa*s
 
 CORE_COLS = [
     "athlete_key",
@@ -38,6 +46,7 @@ CORE_COLS = [
     "event",
     "event_category",
     "distance_m",
+    "is_finalist",
     "time_sec",
     "height_m",
     "mass_kg",
@@ -129,6 +138,8 @@ def parse_olympedia_event(event: object) -> tuple[str | None, str | None]:
     for prefix, dist in [
         ("50 metres Freestyle", "50m"),
         ("100 metres Freestyle", "100m"),
+        ("200 metres Freestyle", "200m"),
+        ("400 metres Freestyle", "400m"),
         ("800 metres Freestyle", "800m"),
         ("1,500 metres Freestyle", "1500m"),
     ]:
@@ -140,7 +151,7 @@ def parse_olympedia_event(event: object) -> tuple[str | None, str | None]:
 def parse_paris_event(event: object) -> tuple[str | None, str | None]:
     if not isinstance(event, str) or "Relay" in event:
         return None, None
-    m = re.match(r"^(Men|Women)'s\s+(50m|100m|800m|1500m)\s+Freestyle$", event.strip())
+    m = re.match(r"^(Men|Women)'s\s+(50m|100m|200m|400m|800m|1500m)\s+Freestyle$", event.strip())
     if not m:
         return None, None
     return m.group(2), m.group(1)
@@ -356,6 +367,7 @@ def process_2000_2020(
                 "event": f"{dist} Freestyle",
                 "distance_m": TARGET_EVENTS_DIST[dist],
                 "stage": "Final",
+                "is_finalist": True,
                 "rank": rank_val,
                 "time_sec": time_sec,
                 "height_cm": h_cm,
@@ -379,6 +391,16 @@ def process_paris_2024(
     p24_res[["dist", "sex"]] = p24_res["event_name"].apply(lambda e: pd.Series(parse_paris_event(e)))
     p24_sub = p24_res.dropna(subset=["dist", "sex"]).copy()
     total_raw = len(p24_sub)
+
+    # Determine finalists BEFORE filtering/deduplicating to fastest swim per athlete x event
+    finalist_mask = p24_sub["stage"].astype(str).str.strip() == "Final"
+    finalist_keys = set(
+        zip(
+            p24_sub.loc[finalist_mask, "participant_code"].astype(str),
+            p24_sub.loc[finalist_mask, "dist"],
+            p24_sub.loc[finalist_mask, "sex"],
+        )
+    )
 
     # Filter out DNS/DSQ/DNF (non-empty result_IRM) and invalid times
     p24_sub = p24_sub[p24_sub["result_IRM"].isna()].copy()
@@ -444,6 +466,7 @@ def process_paris_2024(
                 "event": f"{dist} Freestyle",
                 "distance_m": TARGET_EVENTS_DIST[dist],
                 "stage": str(row["stage"]).strip() if pd.notna(row["stage"]) else "Unknown",
+                "is_finalist": (pcode, dist, sex) in finalist_keys,
                 "rank": pd.to_numeric(row["rank"], errors="coerce"),
                 "time_sec": float(row["time_sec"]),
                 "height_cm": h_cm,
@@ -459,7 +482,11 @@ def process_paris_2024(
 
 def add_derived_variables(df: pd.DataFrame, base_times: dict) -> pd.DataFrame:
     df = df.copy()
-    df["event_category"] = np.where(df["distance_m"].isin([50, 100]), "Sprint", "Distance")
+    df["event_category"] = np.select(
+        [df["distance_m"].isin([50, 100]), df["distance_m"].isin([200, 400])],
+        ["Sprint", "Middle"],
+        default="Distance",
+    )
     df["height_m"] = df["height_cm"] / 100.0
     df["mass_kg"] = df["weight_kg"]
     df["bmi"] = df["mass_kg"] / (df["height_m"] ** 2)
@@ -525,11 +552,20 @@ def main() -> None:
     all_raw = pd.concat([df_2000_2020, df_2024], ignore_index=True)
 
     # Deduplicate to best valid time per athlete_key x event x year (for Paris 2024 heats/semis/finals)
+    # Preserve is_finalist using logical OR (max) so a finalist who swam faster in a heat/semi stays flagged
+    all_raw["is_finalist"] = all_raw["is_finalist"].astype(bool)
     all_raw = all_raw.sort_values("time_sec", ascending=True)
+    finalist_games = (
+        all_raw.groupby(["athlete_key", "event", "year"], as_index=False)["is_finalist"]
+        .max()
+    )
     results_games = (
         all_raw.groupby(["athlete_key", "event", "year"], as_index=False)
         .first()
+        .drop(columns=["is_finalist"])
+        .merge(finalist_games, on=["athlete_key", "event", "year"], how="left")
     )
+    results_games["is_finalist"] = results_games["is_finalist"].astype(bool)
 
     # Unify athlete_key across 2000-2020 and 2024 for repeat Olympians (via normalized name + sex)
     # so swimming_athlete_event_clean.csv has 1 row per unique athlete x event!
@@ -574,13 +610,21 @@ def main() -> None:
     ).reset_index(drop=True)
 
     # Primary independent table: fastest modern Olympic time per unique athlete_key x event
+    # Preserve is_finalist using logical OR (max) across Games/rounds
+    finalist_ae = (
+        clean_results.groupby(["athlete_key", "event"], as_index=False)["is_finalist"]
+        .max()
+    )
     clean_ath_event = (
         clean_results.sort_values("time_sec", ascending=True)
         .groupby(["athlete_key", "event"], as_index=False)
         .first()
-        .sort_values(["sex", "event_category", "event", "time_sec"])
+        .drop(columns=["is_finalist"])
+        .merge(finalist_ae, on=["athlete_key", "event"], how="left")
+        .sort_values(["sex", "distance_m", "time_sec"])
         .reset_index(drop=True)
     )
+    clean_ath_event["is_finalist"] = clean_ath_event["is_finalist"].astype(bool)
 
     validate_table(clean_results, "swimming_results_clean")
     validate_table(clean_ath_event, "swimming_athlete_event_clean")
@@ -589,11 +633,14 @@ def main() -> None:
     clean_ath_event.to_csv(OUT_DIR / "swimming_athlete_event_clean.csv", index=False)
 
     # Build validation report
+    cat_order = pd.CategoricalDtype(["Sprint", "Middle", "Distance"], ordered=True)
     cell_counts = (
-        clean_ath_event.groupby(["sex", "event_category"])
+        clean_ath_event.assign(event_category=clean_ath_event["event_category"].astype(cat_order))
+        .groupby(["sex", "event_category"], observed=False)
         .agg(
             n_unique_athlete_event=("athlete_key", "count"),
             n_unique_athletes=("athlete_key", "nunique"),
+            n_finalists=("is_finalist", "sum"),
             height_m_mean=("height_m", "mean"),
             height_m_sd=("height_m", "std"),
             mass_kg_mean=("mass_kg", "mean"),
@@ -605,37 +652,109 @@ def main() -> None:
         .round(3)
     )
 
+    event_counts = (
+        clean_ath_event.groupby(["sex", "distance_m", "event", "event_category"], as_index=False)
+        .agg(
+            n_unique_athletes=("athlete_key", "count"),
+            n_finalists=("is_finalist", "sum"),
+            height_m_mean=("height_m", "mean"),
+            mass_kg_mean=("mass_kg", "mean"),
+            bmi_mean=("bmi", "mean"),
+            velocity_ms_mean=("velocity_ms", "mean"),
+            froude_mean=("froude_number", "mean"),
+            reynolds_mean=("reynolds_number", "mean"),
+        )
+        .sort_values(["sex", "distance_m"])
+        .drop(columns=["distance_m"])
+        .round({"height_m_mean": 3, "mass_kg_mean": 2, "bmi_mean": 2, "velocity_ms_mean": 3, "froude_mean": 3, "reynolds_mean": 0})
+    )
+
+    # Merge-loss summary per event
+    merge_loss = (
+        results_games.assign(
+            has_hw=results_games["height_cm"].notna() & results_games["weight_kg"].notna(),
+        )
+        .groupby(["sex", "distance_m", "event"], as_index=False)
+        .agg(
+            n_pre_filter=("athlete_key", "count"),
+            n_complete_hw=("has_hw", "sum"),
+            n_finalists_pre=("is_finalist", "sum"),
+        )
+        .sort_values(["sex", "distance_m"])
+        .drop(columns=["distance_m"])
+    )
+    merge_loss["n_dropped_missing_hw"] = merge_loss["n_pre_filter"] - merge_loss["n_complete_hw"]
+    merge_loss["pct_retained"] = (100.0 * merge_loss["n_complete_hw"] / merge_loss["n_pre_filter"]).round(1)
+
+    miss_audit = miss_audit.assign(
+        _dist=miss_audit["event"].str.extract(r"(\d+)").astype(int)
+    ).sort_values(["sex", "_dist", "year"]).drop(columns=["_dist"])
+
+    n_p24_finalists_total = int(
+        results_games[(results_games["year"] == 2024) & (results_games["is_finalist"])].shape[0]
+    )
+    n_p24_finalists_clean = int(
+        clean_results[(clean_results["year"] == 2024) & (clean_results["is_finalist"])].shape[0]
+    )
+    n_p24_finalists_faster_earlier = int(
+        clean_results[
+            (clean_results["year"] == 2024)
+            & (clean_results["is_finalist"])
+            & (clean_results["stage"] != "Final")
+        ].shape[0]
+    )
+
     report_lines = [
         "# Data Cleaning & Validation Report",
         "",
-        "## 1. Pipeline Summary & Row Counts",
+        "## 1. Pipeline Summary & Row Counts (6 Events: 50m, 100m, 200m, 400m, 800m, 1500m Freestyle)",
         f"- **2000–2020 Finalists (`kaggle_swimming_1912_2020`)**: {stats_k12['total']} raw rows "
         f"({stats_k12['olympedia_id']} matched via Olympedia `athlete_id` spine, "
-        f"{stats_k12['fallback_tkey']} via normalized name fallback, {stats_k12['unmatched']} unmatched).",
+        f"{stats_k12['fallback_tkey']} via normalized name fallback, {stats_k12['unmatched']} unmatched). "
+        "All 2000–2020 rows are flagged `is_finalist = True`.",
         f"- **Paris 2024 (`kaggle_paris2024/results/Swimming.csv`)**: {stats_p24['total_swims']} raw swim rows "
         f"({stats_p24['valid_swims']} valid after removing DNS/DSQ/DNF; "
-        f"{results_games[results_games['year'] == 2024].shape[0]} unique athlete-event entries). "
+        f"{results_games[results_games['year'] == 2024].shape[0]} unique athlete-event entries, of which {n_p24_finalists_total} reached the Final). "
         f"Paris 2024 `athletes.csv` codes all swimmer height/weight as `0`/`0.0` (converted to `NaN`); "
         f"{stats_p24.get('dob_name', 0)} swim rows matched via DOB+name and {stats_p24.get('exact_tkey', 0)} via name token key to Olympedia/Kaggle 120-years.",
+        f"- **Paris 2024 `is_finalist` Recovery**: {n_p24_finalists_clean} Paris 2024 clean athlete-event-Games rows are finalists (`is_finalist = True`), "
+        f"including **{n_p24_finalists_faster_earlier}** finalists whose fastest Paris 2024 swim occurred in a Heat or Semifinal (preserved via logical OR during deduplication).",
         f"- **Combined athlete-event-Games records (pre-anthropometric filter)**: {len(results_games)}",
-        f"- **`swimming_results_clean.csv` (complete anthropometrics, best time per athlete × event × Games)**: **{len(clean_results)}** rows",
-        f"- **`swimming_athlete_event_clean.csv` (independent primary table, fastest time per unique athlete × event)**: **{len(clean_ath_event)}** rows",
+        f"- **`swimming_results_clean.csv` (complete anthropometrics, best time per athlete × event × Games)**: **{len(clean_results)}** rows "
+        f"({int(clean_results['is_finalist'].sum())} finalists, {int((~clean_results['is_finalist']).sum())} non-finalists)",
+        f"- **`swimming_athlete_event_clean.csv` (independent primary table, fastest time per unique athlete × event)**: **{len(clean_ath_event)}** rows "
+        f"({int(clean_ath_event['is_finalist'].sum())} finalists, {int((~clean_ath_event['is_finalist']).sum())} non-finalists)",
         "",
-        "## 2. Sample Sizes & Summary Stats by `sex × event_category` (`swimming_athlete_event_clean.csv`)",
+        "## 2. Physical Constants (World Aquatics Competition Pool Temperature: 26 °C)",
+        f"- Gravitational acceleration: `G = {G}` m/s²",
+        f"- Water density at 26 °C: `RHO_WATER = {RHO_WATER}` kg/m³",
+        f"- Dynamic viscosity of water at 26 °C: `MU_WATER = {MU_WATER}` Pa·s (`8.7e-4` Pa·s)",
+        "- Reynolds number: $Re = \\rho v L / \\mu$ using 26 °C competition pool water properties.",
+        "- Event categories: `Sprint` (50m, 100m), `Middle` (200m, 400m), `Distance` (800m, 1500m).",
+        "",
+        "## 3. Sample Sizes & Summary Stats by `sex × event_category` (`swimming_athlete_event_clean.csv`)",
         "",
         df_to_markdown(cell_counts.reset_index()),
         "",
-        "## 3. Validation Assertions",
-        "- All physical bounds passed: `height_m` ∈ [1.4, 2.3], `mass_kg` ∈ [40, 130], `velocity_ms` ∈ [1.2, 2.6], `froude_number` ∈ [0.25, 0.65].",
-        "- Zero NaNs verified across all 20 core analysis columns in both output CSVs.",
+        "## 4. Event-Level Summary Stats (`swimming_athlete_event_clean.csv`, All 6 Events)",
         "",
-        "## 4. Missingness Audit by `sex × event × year` (Pre-Filter)",
+        df_to_markdown(event_counts),
+        "",
+        "## 5. Merge-Loss Diagnostics by `sex × event` (Pre-Filter to Complete Anthropometrics)",
+        "",
+        df_to_markdown(merge_loss),
+        "",
+        "## 6. Validation Assertions",
+        "- All physical bounds passed: `height_m` ∈ [1.4, 2.3], `mass_kg` ∈ [40, 130], `velocity_ms` ∈ [1.2, 2.6], `froude_number` ∈ [0.25, 0.65].",
+        f"- Zero NaNs verified across all {len(CORE_COLS)} core analysis columns (including `is_finalist`) in both output CSVs.",
+        "",
+        "## 7. Missingness Audit by `sex × event × year` (Pre-Filter, All 6 Events)",
         "",
         df_to_markdown(miss_audit),
         "",
-        "## 5. Key Caveats for Modeling",
-        "1. **2000–2020 vs. 2024 Sampling Frame**: `kaggle_swimming_1912_2020` contains Olympic **finalists** (top 8 per event-year), whereas `kaggle_paris2024` contains all heats/semis/finals (deduplicated to best swim per athlete-event). Paris 2024 swimmers with complete height/weight are predominantly returning Olympians (~15% of Paris 2024 swimmers).",
-        "2. **Tokyo 2020 Debut Asymmetry**: Men's 800m Freestyle and Women's 1500m Freestyle debuted at Tokyo 2020 (2021), where Olympedia anthropometric coverage is also sparser (~48% complete vs. ~88% in 2000–2016).",
+        "## 8. Key Caveats for Modeling",
+        "1. **2000–2020 vs. 2024 Sampling Frame**: `kaggle_swimming_1912_2020` contains Olympic **finalists** (top 8 per event-year; all `is_finalist = True`), whereas `kaggle_paris2024` contains all heats/semis/finals (deduplicated to best swim per athlete-event, with `is_finalist = True` preserved via logical OR if the swimmer competed in the Final). Paris 2024 swimmers with complete height/weight are predominantly returning Olympians.",
+        "2. **Tokyo 2020 Debut Asymmetry**: Men's 800m Freestyle and Women's 1500m Freestyle debuted at Tokyo 2020 (2021), where Olympedia anthropometric coverage is also sparser than in 2000–2016.",
         "3. **No Anthropometric Imputation**: Missing height/weight values (including Paris 2024 `0`/`0.0`) are strictly preserved as `NaN` and excluded from `Fr`/BMI/PI tables.",
     ]
 
