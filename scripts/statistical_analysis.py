@@ -38,14 +38,23 @@ FIG_DIR.mkdir(parents=True, exist_ok=True)
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 sns.set_theme(style="whitegrid", context="paper", font_scale=1.1)
-PALETTE_CAT = {"Sprint": "#D55E00", "Distance": "#0072B2"}
+PALETTE_CAT = {"Sprint": "#D55E00", "Middle": "#009E73", "Distance": "#0072B2"}
 PALETTE_EVT = {
     "50m Freestyle": "#D55E00",
     "100m Freestyle": "#E69F00",
+    "200m Freestyle": "#009E73",
+    "400m Freestyle": "#CC79A7",
     "800m Freestyle": "#56B4E9",
     "1500m Freestyle": "#0072B2",
 }
-EVENT_ORDER = ["50m Freestyle", "100m Freestyle", "800m Freestyle", "1500m Freestyle"]
+EVENT_ORDER = [
+    "50m Freestyle",
+    "100m Freestyle",
+    "200m Freestyle",
+    "400m Freestyle",
+    "800m Freestyle",
+    "1500m Freestyle",
+]
 
 METRICS = [
     ("height_m", "Height (m)"),
@@ -170,7 +179,7 @@ def run_group_comparisons(df: pd.DataFrame, subset_name: str = "primary") -> pd.
 
 
 # ---------------------------------------------------------------------------
-# 3. Event-Level Distance Gradient (50m -> 100m -> 800m -> 1500m)
+# 3. Event-Level Distance Gradient (50m -> 100m -> 200m -> 400m -> 800m -> 1500m)
 # ---------------------------------------------------------------------------
 def run_event_gradient(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     summary_rows = []
@@ -226,7 +235,7 @@ def run_correlations(df: pd.DataFrame) -> pd.DataFrame:
     perf = ["velocity_ms", "froude_number", "wa_points"]
     rows = []
     for sex in ["Men", "Women"]:
-        for cat in ["Sprint", "Distance"]:
+        for cat in ["Sprint", "Middle", "Distance"]:
             sub = df[(df["sex"] == sex) & (df["event_category"] == cat)]
             for a in anthro:
                 for p_col in perf:
@@ -312,6 +321,7 @@ def run_ols_suite(df_ae: pd.DataFrame, df_rc: pd.DataFrame) -> pd.DataFrame:
         for sex in ["Men", "Women"]:
             for scope_name, scope_filter in [
                 ("Sprint", df["event_category"] == "Sprint"),
+                ("Middle", df["event_category"] == "Middle"),
                 ("Distance", df["event_category"] == "Distance"),
                 ("All_Events", pd.Series(True, index=df.index)),
             ]:
@@ -353,8 +363,9 @@ def run_logistic_cv(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     roc_curves = {}
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
 
+    df_sd = df[df["event_category"].isin(["Sprint", "Distance"])].copy()
     for sex in ["Men", "Women"]:
-        sub = df[df["sex"] == sex].copy()
+        sub = df_sd[df_sd["sex"] == sex].copy()
         y = (sub["event_category"] == "Sprint").astype(int).to_numpy()
         for model_name, feats in specs:
             X = sub[feats].to_numpy(dtype=float)
@@ -401,6 +412,7 @@ def run_logistic_cv(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
 # 5. Publication-Quality Figures
 # ---------------------------------------------------------------------------
 def make_fig1_anthropometrics(df: pd.DataFrame, stats_df: pd.DataFrame) -> None:
+    df = df[df["event_category"].isin(["Sprint", "Distance"])].copy()
     fig, axes = plt.subplots(2, 2, figsize=(11, 8.5), sharex=True)
     panels = [
         ("height_m", "Standing Height (m)"),
@@ -470,7 +482,7 @@ def make_fig1_anthropometrics(df: pd.DataFrame, stats_df: pd.DataFrame) -> None:
 
 
 def make_fig2_froude_vs_height(df: pd.DataFrame) -> None:
-    fig, axes = plt.subplots(1, 2, figsize=(12, 5.2), sharey=True)
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5.6), sharey=True)
     for ax, sex in zip(axes, ["Men", "Women"]):
         sub = df[df["sex"] == sex]
         for evt in EVENT_ORDER:
@@ -478,9 +490,9 @@ def make_fig2_froude_vs_height(df: pd.DataFrame) -> None:
             ax.scatter(
                 ev["height_m"],
                 ev["froude_number"],
-                label=f"{evt.replace(' Freestyle', '')} (n={len(ev)})",
+                label=evt.replace(" Freestyle", ""),
                 color=PALETTE_EVT[evt],
-                alpha=0.78,
+                alpha=0.80,
                 s=42,
                 edgecolors="white",
                 linewidth=0.5,
@@ -491,20 +503,30 @@ def make_fig2_froude_vs_height(df: pd.DataFrame) -> None:
         ax.set_xlabel("Standing Height L (m)", fontweight="bold")
         if ax == axes[0]:
             ax.set_ylabel("Froude Number Fr = v / √(gL)", fontweight="bold")
-        ax.legend(loc="lower right", fontsize=8.5, frameon=True)
 
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(
+        handles,
+        labels,
+        loc="lower center",
+        bbox_to_anchor=(0.5, 0.01),
+        ncol=7,
+        fontsize=8.5,
+        frameon=True,
+    )
     fig.suptitle(
         "Froude Number vs. Standing Height Across Olympic Freestyle Events (2000–2024)",
         fontsize=13,
         fontweight="bold",
-        y=0.98,
+        y=0.97,
     )
-    fig.tight_layout(rect=[0, 0, 1, 0.94])
+    fig.tight_layout(rect=[0, 0.09, 1, 0.93])
     fig.savefig(FIG_DIR / "froude_vs_height.png", dpi=300)
     plt.close(fig)
 
 
 def make_fig3_bmi_vs_height(df: pd.DataFrame, roc_curves: dict) -> None:
+    df = df[df["event_category"].isin(["Sprint", "Distance"])].copy()
     fig, axes = plt.subplots(2, 2, figsize=(11.5, 9.0))
     for row_idx, sex in enumerate(["Men", "Women"]):
         sub = df[df["sex"] == sex]
@@ -558,16 +580,18 @@ def make_fig3_bmi_vs_height(df: pd.DataFrame, roc_curves: dict) -> None:
 
 
 def make_fig4_gradient_and_regression(df: pd.DataFrame, logit_df: pd.DataFrame) -> None:
-    fig, axes = plt.subplots(2, 2, figsize=(12, 8.8))
+    fig, axes = plt.subplots(2, 2, figsize=(12.5, 9.0))
     short_map = {
         "50m Freestyle": "50m",
         "100m Freestyle": "100m",
+        "200m Freestyle": "200m",
+        "400m Freestyle": "400m",
         "800m Freestyle": "800m",
         "1500m Freestyle": "1500m",
     }
     df_p = df.copy()
     df_p["event_short"] = df_p["event"].map(short_map)
-    short_order = ["50m", "100m", "800m", "1500m"]
+    short_order = ["50m", "100m", "200m", "400m", "800m", "1500m"]
 
     grad_panels = [
         (axes[0, 0], "height_m", "Standing Height (m)", "A. Height Gradient Across Distances"),
@@ -662,38 +686,52 @@ def main() -> None:
     df_ae = pd.read_csv(DATA_AE)
     df_rc = pd.read_csv(DATA_RC)
 
+    # Filter Sprint vs. Distance subset for pairwise comparisons & binary classification
+    df_sd = df_ae[df_ae["event_category"].isin(["Sprint", "Distance"])].copy()
+
     # 1. Sample & Overlap Diagnostics
     print("=== SAMPLE & OVERLAP DIAGNOSTICS ===")
-    print(f"AE rows: {len(df_ae)}, unique athletes: {df_ae['athlete_key'].nunique()}")
-    print(f"RC rows: {len(df_rc)}, unique athletes: {df_rc['athlete_key'].nunique()}")
+    print(f"AE rows (all 6 events): {len(df_ae)}, unique athletes: {df_ae['athlete_key'].nunique()}")
+    print(f"AE rows (Sprint+Distance): {len(df_sd)}, unique athletes: {df_sd['athlete_key'].nunique()}")
+    print(f"RC rows (all 6 events): {len(df_rc)}, unique athletes: {df_rc['athlete_key'].nunique()}")
     for sex in ["Men", "Women"]:
-        sub = df_ae[df_ae["sex"] == sex]
-        both_sprint = sub[sub["event"].isin(["50m Freestyle", "100m Freestyle"])].groupby("athlete_key")["event"].nunique().gt(1).sum()
-        both_cat = sub.groupby("athlete_key")["event_category"].nunique().gt(1).sum()
-        print(f"  {sex}: {len(sub)} AE rows, {sub['athlete_key'].nunique()} unique athletes, {both_sprint} in both 50m & 100m, {both_cat} in both Sprint & Distance")
+        sub_all = df_ae[df_ae["sex"] == sex]
+        sub_sd = df_sd[df_sd["sex"] == sex]
+        both_sprint = sub_sd[sub_sd["event"].isin(["50m Freestyle", "100m Freestyle"])].groupby("athlete_key")["event"].nunique().gt(1).sum()
+        both_cat = sub_sd.groupby("athlete_key")["event_category"].nunique().gt(1).sum()
+        print(
+            f"  {sex}: {len(sub_all)} AE rows ({sub_all['athlete_key'].nunique()} unique athletes across 6 events) | "
+            f"Sprint+Dist: {len(sub_sd)} rows ({sub_sd['athlete_key'].nunique()} unique), "
+            f"{both_sprint} in both 50m & 100m, {both_cat} in both Sprint & Distance"
+        )
 
-    # 2. Primary + Sensitivity Group Comparisons
+    # 2. Primary + Sensitivity Group Comparisons (strictly Sprint vs. Distance)
     splits = {
-        "primary_all_2000_2024": df_ae,
-        "textile_2012_2024": df_ae[df_ae["year"] >= 2012],
-        "excl_supersuit_2008": df_ae[df_ae["year"] != 2008],
-        "excl_50m_100m_vs_dist": df_ae[df_ae["event"] != "50m Freestyle"],
-        "finalists_only": df_ae[df_ae["stage"] == "Final"],
-        "one_row_per_athlete_best_wa": df_ae.sort_values("wa_points", ascending=False).drop_duplicates("athlete_key"),
+        "primary_all_2000_2024": df_sd,
+        "textile_2012_2024": df_sd[df_sd["year"] >= 2012],
+        "excl_supersuit_2008": df_sd[df_sd["year"] != 2008],
+        "excl_50m_100m_vs_dist": df_sd[df_sd["event"] != "50m Freestyle"],
+        "finalists_only": df_sd[df_sd["is_finalist"] == True],
+        "2000_2020_only": df_sd[df_sd["year"] <= 2020],
+        "one_row_per_athlete_best_wa": df_sd.sort_values("wa_points", ascending=False).drop_duplicates("athlete_key"),
     }
     comp_frames = [run_group_comparisons(sub, name) for name, sub in splits.items()]
     comp_df = pd.concat(comp_frames, ignore_index=True)
     comp_df.to_csv(OUT_DIR / "sprint_vs_distance_comparisons.csv", index=False)
 
-    # Froude threshold (> 0.42) rates
-    print("\n=== FROUDE > 0.42 RATES (PRIMARY AE) ===")
+    # Froude threshold (> 0.42) rates across all 6 events
+    print("\n=== FROUDE > 0.42 RATES (PRIMARY AE, ALL 6 EVENTS) ===")
     for sex in ["Men", "Women"]:
         for evt in EVENT_ORDER:
             ev = df_ae[(df_ae["sex"] == sex) & (df_ae["event"] == evt)]
+            n_gt = int((ev["froude_number"] > 0.42).sum())
             pct = 100.0 * (ev["froude_number"] > 0.42).mean() if len(ev) else np.nan
-            print(f"  {sex} {evt}: n={len(ev)}, mean Fr={ev['froude_number'].mean():.3f}, % > 0.42 = {pct:.1f}%")
+            print(
+                f"  {sex:5s} {evt:15s}: n={len(ev):2d}, mean Fr={ev['froude_number'].mean():.3f} ± {ev['froude_number'].std():.3f}, "
+                f"> 0.42 = {n_gt:2d}/{len(ev):2d} ({pct:5.1f}%)"
+            )
 
-    # 3. Distance-Gradient Analysis
+    # 3. Distance-Gradient Analysis (all 6 events)
     grad_summary, grad_trends = run_event_gradient(df_ae)
     grad_summary.to_csv(OUT_DIR / "event_gradient_summary.csv", index=False)
     grad_trends.to_csv(OUT_DIR / "event_gradient_trends.csv", index=False)
@@ -705,14 +743,14 @@ def main() -> None:
     ols_df = run_ols_suite(df_ae, df_rc)
     ols_df.to_csv(OUT_DIR / "ols_regression_results.csv", index=False)
 
-    logit_df, roc_curves = run_logistic_cv(df_ae)
+    logit_df, roc_curves = run_logistic_cv(df_sd)
     logit_df.to_csv(OUT_DIR / "logistic_cv_results.csv", index=False)
 
     # 5. Figures
     primary_comp = comp_df[comp_df["subset"] == "primary_all_2000_2024"]
-    make_fig1_anthropometrics(df_ae, primary_comp)
+    make_fig1_anthropometrics(df_sd, primary_comp)
     make_fig2_froude_vs_height(df_ae)
-    make_fig3_bmi_vs_height(df_ae, roc_curves)
+    make_fig3_bmi_vs_height(df_sd, roc_curves)
     make_fig4_gradient_and_regression(df_ae, logit_df)
 
     # Print concise key findings to stdout
