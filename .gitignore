@@ -1,11 +1,13 @@
-# Virtual environments & Python cache
+# Virtual environments, agent metadata & Python cache
 .venv/
+.agents/
 __pycache__/
 *.py[cod]
 .ipynb_checkpoints/
 
-# Large third-party raw datasets (see PROJECT SUMMARY.md for download URLs)
+# Large third-party raw datasets & PDFs (see PROJECT SUMMARY.md for download URLs)
 data/raw/*.csv
+data/raw/*.pdf
 data/raw/*.zip
 data/raw/kaggle_*/
 !data/raw/world_aquatics_base_times.json
