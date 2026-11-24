@@ -39,7 +39,7 @@ If supplementing public data with anonymized measurements from a swim club or pu
 $$F_{\text{drag}} = F_{\text{friction}} + F_{\text{form}} + F_{\text{wave}}$$
 
 * **Form / Active Drag:** $F_d = \frac{1}{2} \cdot \rho \cdot C_d \cdot A \cdot v^2$  
-  *($\rho \approx 998\text{ kg/m}^3$ water density, $C_d =$ drag coefficient, $A =$ frontal cross-sectional area, $v =$ swimming velocity)*
+  *($\rho = 996.8\text{ kg/m}^3$ water density at 26 °C competition pool temperature, $C_d =$ drag coefficient, $A =$ frontal cross-sectional area, $v =$ swimming velocity)*
 * **Skin Friction Drag:** $F_{\text{friction}} = \frac{1}{2} \cdot \rho \cdot C_f \cdot S_{\text{wet}} \cdot v^2$  
   *($S_{\text{wet}} =$ wetted surface area; accounts for roughly 10–15% of total drag at sprint speeds, while form drag accounts for ~40–60% and wave drag ~30–50%; see [Swimming Hydrodynamics Overview](https://www.mysimulator.uk/content/articles/swimming-hydrodynamics.html))*
 
@@ -57,7 +57,7 @@ Rather than a hard physical threshold, $Fr \approx 0.42$ marks a **smooth constr
 
 $$Re = \frac{\rho \cdot v \cdot L}{\mu}$$
 
-*($\mu \approx 1.0 \times 10^{-3}\text{ Pa}\cdot\text{s}$ dynamic viscosity of water)*
+*($\mu = 8.7 \times 10^{-4}\text{ Pa}\cdot\text{s}$ dynamic viscosity of water at 26 °C competition pool temperature)*
 
 At elite speeds, $Re \approx 3\text{–}4 \times 10^6$, confirming turbulent boundary-layer flow.
 

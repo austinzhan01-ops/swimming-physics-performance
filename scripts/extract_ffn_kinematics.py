@@ -183,11 +183,13 @@ def parse_400m(reader: PdfReader, p_sec: int, p_uw: int, p_sr: int) -> dict:
 
 
 def parse_800m(reader: PdfReader, p_sec: int, p_uw: int, p_sr: int) -> dict:
-    # Default mode on p_sec has clean line: 355-395m <tot> s <h1 > s <h2> s (24 floats = 8 x 3)
+    # FFN 800m SR/SL table reports odd-lap 50m values (300-350m, Lap 7) under the
+    # '300-350m|350-400m' label (mirroring odd-lap Lap 15 in 1500m). Align clean-speed
+    # segment time to Lap 7 (305-345m, 40m mid-pool) so seg_time and SR/SL match exactly.
     lines_sec = get_default_lines(reader, p_sec)
-    l_lap8 = extract_floats(find_line(lines_sec, "355-395m"))
-    assert len(l_lap8) == 24, f"800m 355-395m floats: {len(l_lap8)}"
-    seg_time = [l_lap8[3 * i] for i in range(8)]
+    l_lap7 = extract_floats(find_line(lines_sec, "305-345m"))
+    assert len(l_lap7) == 24, f"800m 305-345m floats: {len(l_lap7)}"
+    seg_time = [l_lap7[3 * i] for i in range(8)]
 
     lines_uw = get_layout_lines(reader, p_uw)
     uw_m = extract_floats(find_line(lines_uw, "Sortie de coulée", 0))
@@ -207,7 +209,7 @@ def parse_800m(reader: PdfReader, p_sec: int, p_uw: int, p_sr: int) -> dict:
         "sr_cpm": sr_cpm,
         "sl_m": sl_m,
         "uw_m": uw_m,
-        "window_label": "Lap 8: 355-395m",
+        "window_label": "Lap 7: 305-345m",
     }
 
 

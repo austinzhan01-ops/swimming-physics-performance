@@ -20,7 +20,7 @@ import statsmodels.api as sm
 from scipy import stats
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, roc_auc_score, roc_curve
-from sklearn.model_selection import StratifiedKFold, cross_val_predict
+from sklearn.model_selection import StratifiedGroupKFold, cross_val_predict
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from statsmodels.stats.multitest import multipletests
@@ -169,11 +169,26 @@ def run_group_comparisons(df: pd.DataFrame, subset_name: str = "primary") -> pd.
                 }
             )
 
-        _, fdr_welch, _, _ = multipletests(p_welch_list, method="fdr_bh")
-        _, fdr_mwu, _, _ = multipletests(p_mwu_list, method="fdr_bh")
+        # Apply BH-FDR over the 8 unique metrics (excluding froude_hull_ratio = froude_number / 0.42)
+        fdr_idxs = [i for i, r in enumerate(sex_rows) if r["metric"] != "froude_hull_ratio"]
+        _, fdr_welch, _, _ = multipletests([p_welch_list[i] for i in fdr_idxs], method="fdr_bh")
+        _, fdr_mwu, _, _ = multipletests([p_mwu_list[i] for i in fdr_idxs], method="fdr_bh")
+        fdr_w_map = {idx: float(val) for idx, val in zip(fdr_idxs, fdr_welch)}
+        fdr_m_map = {idx: float(val) for idx, val in zip(fdr_idxs, fdr_mwu)}
+
+        # Also compute 4-metric anthropometric-only BH-FDR for reporting transparency
+        anthro_set = {"height_m", "mass_kg", "bmi", "ponderal_index"}
+        anthro_idxs = [i for i, r in enumerate(sex_rows) if r["metric"] in anthro_set]
+        _, fdr_w_anthro, _, _ = multipletests([p_welch_list[i] for i in anthro_idxs], method="fdr_bh")
+        _, fdr_m_anthro, _, _ = multipletests([p_mwu_list[i] for i in anthro_idxs], method="fdr_bh")
+        fdr_wa_map = {idx: float(val) for idx, val in zip(anthro_idxs, fdr_w_anthro)}
+        fdr_ma_map = {idx: float(val) for idx, val in zip(anthro_idxs, fdr_m_anthro)}
+
         for idx, r in enumerate(sex_rows):
-            r["p_welch_fdr"] = float(fdr_welch[idx])
-            r["p_mwu_fdr"] = float(fdr_mwu[idx])
+            r["p_welch_fdr"] = fdr_w_map.get(idx, np.nan)
+            r["p_mwu_fdr"] = fdr_m_map.get(idx, np.nan)
+            r["p_welch_fdr_anthro4"] = fdr_wa_map.get(idx, np.nan)
+            r["p_mwu_fdr_anthro4"] = fdr_ma_map.get(idx, np.nan)
         rows.extend(sex_rows)
     return pd.DataFrame(rows)
 
@@ -325,18 +340,27 @@ def run_ols_suite(df_ae: pd.DataFrame, df_rc: pd.DataFrame) -> pd.DataFrame:
                 ("Distance", df["event_category"] == "Distance"),
                 ("All_Events", pd.Series(True, index=df.index)),
             ]:
-                sub = df[(df["sex"] == sex) & scope_filter]
+                sub = df[(df["sex"] == sex) & scope_filter].copy()
                 outcomes = ["wa_points"] if scope_name == "All_Events" else ["velocity_ms", "wa_points"]
+                # Add within-category distance fixed effect for pooled multi-distance velocity_ms models
+                if scope_name != "All_Events" and sub["distance_m"].nunique() > 1:
+                    max_dist = sub["distance_m"].max()
+                    sub["is_longer_event"] = (sub["distance_m"] == max_dist).astype(float)
                 for outcome in outcomes:
                     for model_name, preds in specs:
-                        res = fit_ols_model(sub, outcome, preds, cluster_col=clust)
+                        use_preds = list(preds)
+                        use_name = model_name
+                        if outcome == "velocity_ms" and "is_longer_event" in sub.columns:
+                            use_preds = use_preds + ["is_longer_event"]
+                            use_name = f"{model_name} + DistFE"
+                        res = fit_ols_model(sub, outcome, use_preds, cluster_col=clust)
                         rows.append(
                             {
                                 "dataset": dataset_name,
                                 "sex": sex,
                                 "scope": scope_name,
                                 "outcome": outcome,
-                                "model": model_name,
+                                "model": use_name,
                                 "n": res["n"],
                                 "r2": res["r2"],
                                 "adj_r2": res["adj_r2"],
@@ -361,16 +385,17 @@ def run_logistic_cv(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     ]
     rows = []
     roc_curves = {}
-    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    cv = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
 
     df_sd = df[df["event_category"].isin(["Sprint", "Distance"])].copy()
     for sex in ["Men", "Women"]:
         sub = df_sd[df_sd["sex"] == sex].copy()
         y = (sub["event_category"] == "Sprint").astype(int).to_numpy()
+        groups = sub["athlete_key"].to_numpy()
         for model_name, feats in specs:
             X = sub[feats].to_numpy(dtype=float)
             pipe = make_pipeline(StandardScaler(), LogisticRegression(max_iter=1000, random_state=42))
-            probs = cross_val_predict(pipe, X, y, cv=cv, method="predict_proba")[:, 1]
+            probs = cross_val_predict(pipe, X, y, cv=cv, groups=groups, method="predict_proba")[:, 1]
             preds = (probs >= 0.5).astype(int)
             auc = roc_auc_score(y, probs)
             acc = accuracy_score(y, preds)
